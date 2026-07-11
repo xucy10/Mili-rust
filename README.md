@@ -110,11 +110,3 @@ to discuss the project and ask questions.
 
 Code is licensed under [MIT](https://opensource.org/licenses/MIT) while the Valence logo is
 under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)
-
-# Funding
-
-If you would like to contribute financially, consider sponsoring me (rj00a)
-on [GitHub](https://github.com/sponsors/rj00a)
-or [Patreon](https://www.patreon.com/rj00a).
-
-I would love to continue working on Valence and your support would help me do that. Thanks!
