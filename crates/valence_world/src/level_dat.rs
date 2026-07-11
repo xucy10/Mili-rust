@@ -182,15 +182,11 @@ impl LevelDat {
 
     fn parse_level_data(mut compound: Compound) -> Result<LevelData> {
         let get_int = |c: &mut Compound, key: &str, default: i32| -> i32 {
-            c.remove(key)
-                .and_then(|v| v.as_int())
-                .unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_int()).unwrap_or(default)
         };
 
         let get_byte = |c: &mut Compound, key: &str, default: i8| -> i8 {
-            c.remove(key)
-                .and_then(|v| v.as_byte())
-                .unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_byte()).unwrap_or(default)
         };
 
         let get_bool = |c: &mut Compound, key: &str, default: bool| -> bool {
@@ -201,21 +197,15 @@ impl LevelDat {
         };
 
         let get_long = |c: &mut Compound, key: &str, default: i64| -> i64 {
-            c.remove(key)
-                .and_then(|v| v.as_long())
-                .unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_long()).unwrap_or(default)
         };
 
         let get_float = |c: &mut Compound, key: &str, default: f32| -> f32 {
-            c.remove(key)
-                .and_then(|v| v.as_float())
-                .unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_float()).unwrap_or(default)
         };
 
         let get_double = |c: &mut Compound, key: &str, default: f64| -> f64 {
-            c.remove(key)
-                .and_then(|v| v.as_double())
-                .unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_double()).unwrap_or(default)
         };
 
         let get_string = |c: &mut Compound, key: &str, default: &str| -> String {
@@ -305,10 +295,7 @@ impl LevelDat {
     /// Converts to NBT compound.
     fn to_compound(&self) -> Compound {
         let mut root = Compound::new();
-        root.insert(
-            "DataVersion".to_owned(),
-            Value::Int(self.data_version),
-        );
+        root.insert("DataVersion".to_owned(), Value::Int(self.data_version));
 
         let mut data = self.level_data.to_compound();
         root.insert("Data".to_owned(), Value::Compound(data));
@@ -321,7 +308,10 @@ impl LevelData {
     fn to_compound(&self) -> Compound {
         let mut c = Compound::new();
 
-        c.insert("allowCommands".to_owned(), Value::Byte(self.allow_commands as i8));
+        c.insert(
+            "allowCommands".to_owned(),
+            Value::Byte(self.allow_commands as i8),
+        );
         c.insert(
             "BorderCenterX".to_owned(),
             Value::Double(self.border_center_x),
@@ -339,7 +329,10 @@ impl LevelData {
             Value::Double(self.border_danger_zone_time),
         );
         c.insert("BorderSize".to_owned(), Value::Double(self.border_size));
-        c.insert("BorderSafeZone".to_owned(), Value::Double(self.border_safe_zone));
+        c.insert(
+            "BorderSafeZone".to_owned(),
+            Value::Double(self.border_safe_zone),
+        );
         c.insert(
             "BorderTeleportBoundary".to_owned(),
             Value::Double(self.border_teleport_boundary),
@@ -365,7 +358,10 @@ impl LevelData {
             "BorderLerpTarget".to_owned(),
             Value::Double(self.border_lerp_target),
         );
-        c.insert("BorderLerpTime".to_owned(), Value::Long(self.border_lerp_time));
+        c.insert(
+            "BorderLerpTime".to_owned(),
+            Value::Long(self.border_lerp_time),
+        );
         c.insert("GameType".to_owned(), Value::Int(self.game_type));
         c.insert(
             "generatorName".to_owned(),
@@ -389,10 +385,7 @@ impl LevelData {
             Value::String(self.level_name.clone()),
         );
         c.insert("maxPlayers".to_owned(), Value::Int(self.max_players));
-        c.insert(
-            "mobSpawnRange".to_owned(),
-            Value::Int(self.mob_spawn_range),
-        );
+        c.insert("mobSpawnRange".to_owned(), Value::Int(self.mob_spawn_range));
         c.insert(
             "NetherScale".to_owned(),
             Value::Float(self.player_nether_scale),
@@ -405,10 +398,7 @@ impl LevelData {
         c.insert("SpawnZ".to_owned(), Value::Int(self.spawn_z));
         c.insert("thundering".to_owned(), Value::Byte(self.thundering as i8));
         c.insert("thunderTime".to_owned(), Value::Int(self.thunder_time));
-        c.insert(
-            "Version".to_owned(),
-            Value::Compound(self.version.clone()),
-        );
+        c.insert("Version".to_owned(), Value::Compound(self.version.clone()));
         c.insert("wasModded".to_owned(), Value::Byte(self.was_modded as i8));
 
         c
@@ -447,8 +437,6 @@ mod tests {
         assert_eq!(loaded.level_data.spawn_y, level.level_data.spawn_y);
         assert_eq!(loaded.level_data.spawn_z, level.level_data.spawn_z);
         assert_eq!(loaded.level_data.game_type, level.level_data.game_type);
-        assert_eq!(
-            loaded.level_data.level_name, level.level_data.level_name
-        );
+        assert_eq!(loaded.level_data.level_name, level.level_data.level_name);
     }
 }

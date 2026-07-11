@@ -94,10 +94,10 @@ pub struct EntityAiPlugin;
 
 impl Plugin for EntityAiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (
-            behavior_system,
-            perception::perception_system,
-        ).chain());
+        app.add_systems(
+            Update,
+            (behavior_system, perception::perception_system).chain(),
+        );
     }
 }
 

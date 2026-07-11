@@ -34,6 +34,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       
+      - name: 生成 playground.rs
+        run: cp tools/playground/src/playground.template.rs tools/playground/src/playground.rs
+      
       - name: 检查格式
         run: cargo fmt --all -- --check
       

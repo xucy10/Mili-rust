@@ -278,10 +278,7 @@ impl PistonHead {
 }
 
 pub fn is_piston(state: BlockState) -> bool {
-    matches!(
-        state.to_kind(),
-        BlockKind::Piston | BlockKind::StickyPiston
-    )
+    matches!(state.to_kind(), BlockKind::Piston | BlockKind::StickyPiston)
 }
 
 pub fn is_piston_head(state: BlockState) -> bool {

@@ -4,8 +4,8 @@ use bevy_ecs::prelude::*;
 use valence_entity::Position;
 use valence_protocol::BlockPos;
 
-use super::{BehaviorContext, BehaviorNode, BehaviorStatus};
 use super::memory::{EntityMemory, MemoryEntry};
+use super::{BehaviorContext, BehaviorNode, BehaviorStatus};
 
 /// Component for entity behavior trees.
 #[derive(Component)]
@@ -328,7 +328,9 @@ pub struct SetMemory {
 
 impl ActionNode for SetMemory {
     fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        ctx.memory.memories.insert(self.key.clone(), self.value.clone());
+        ctx.memory
+            .memories
+            .insert(self.key.clone(), self.value.clone());
         BehaviorStatus::Success
     }
 }

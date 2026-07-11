@@ -216,14 +216,7 @@ pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<FallingBlockLandEvent>()
-            .add_systems(
-                Update,
-                (
-                    physics_system,
-                    falling_block_system,
-                )
-                    .chain(),
-            );
+            .add_systems(Update, (physics_system, falling_block_system).chain());
     }
 }
 
@@ -552,12 +545,7 @@ pub fn check_block_collision(
 /// System that handles falling blocks (sand, gravel, etc.).
 pub fn falling_block_system(
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &mut PhysicsBody,
-        &mut Position,
-        &FallingBlockData,
-    )>,
+    mut query: Query<(Entity, &mut PhysicsBody, &mut Position, &FallingBlockData)>,
     chunk_layers: Query<&ChunkLayer>,
     mut land_events: EventWriter<FallingBlockLandEvent>,
     time: Res<Time>,

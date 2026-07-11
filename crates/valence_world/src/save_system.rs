@@ -150,10 +150,7 @@ pub fn update_save_timer(mut save_manager: ResMut<WorldSaveManager>, time: Res<T
 }
 
 /// System that performs auto-save when the timer elapses.
-pub fn auto_save_system(
-    mut save_manager: ResMut<WorldSaveManager>,
-    layers: Query<&ChunkLayer>,
-) {
+pub fn auto_save_system(mut save_manager: ResMut<WorldSaveManager>, layers: Query<&ChunkLayer>) {
     if !save_manager.should_auto_save() {
         return;
     }
@@ -246,14 +243,8 @@ pub struct WorldSavePlugin;
 
 impl Plugin for WorldSavePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (update_save_timer, auto_save_system).chain(),
-        )
-        .add_systems(
-            PostUpdate,
-            shutdown_save_system.before(bevy_app::Main),
-        );
+        app.add_systems(Update, (update_save_timer, auto_save_system).chain())
+            .add_systems(PostUpdate, shutdown_save_system.before(bevy_app::Main));
     }
 }
 

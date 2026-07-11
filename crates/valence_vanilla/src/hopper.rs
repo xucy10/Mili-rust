@@ -78,10 +78,7 @@ pub struct HopperPlugin;
 
 impl Plugin for HopperPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            hopper_system,
-        );
+        app.add_systems(Update, hopper_system);
     }
 }
 
@@ -107,7 +104,13 @@ fn hopper_system(
         }
 
         // Then try to push items to the output direction
-        if try_push_items(&mut hopper_inv, pos, hopper.output_direction, &mut inventories, &chunk_layers) {
+        if try_push_items(
+            &mut hopper_inv,
+            pos,
+            hopper.output_direction,
+            &mut inventories,
+            &chunk_layers,
+        ) {
             hopper.start_cooldown();
         }
     }
@@ -159,10 +162,7 @@ fn try_push_items(
 }
 
 /// Transfer items from a source inventory to the hopper.
-fn transfer_from_source_to_hopper(
-    source_inv: &mut Inventory,
-    hopper_inv: &mut Inventory,
-) -> bool {
+fn transfer_from_source_to_hopper(source_inv: &mut Inventory, hopper_inv: &mut Inventory) -> bool {
     // Try to pull from the first slot of the source that has items
     for slot_idx in 0..source_inv.slot_count() {
         let source_item = source_inv.slot(slot_idx).clone();
@@ -206,10 +206,7 @@ fn transfer_from_source_to_hopper(
 }
 
 /// Transfer items from the hopper to a target inventory.
-fn transfer_from_hopper_to_target(
-    hopper_inv: &mut Inventory,
-    target_inv: &mut Inventory,
-) -> bool {
+fn transfer_from_hopper_to_target(hopper_inv: &mut Inventory, target_inv: &mut Inventory) -> bool {
     for slot_idx in 0..hopper_inv.slot_count() {
         let source_item = hopper_inv.slot(slot_idx).clone();
         if source_item.is_empty() {
@@ -309,7 +306,10 @@ fn find_inventory_at_entity(
 }
 
 /// Find a block-entity-based inventory at the given block position.
-fn find_inventory_at_block(_pos: BlockPos, _chunk_layers: &Query<&ChunkLayer>) -> Option<Inventory> {
+fn find_inventory_at_block(
+    _pos: BlockPos,
+    _chunk_layers: &Query<&ChunkLayer>,
+) -> Option<Inventory> {
     // In a real implementation, you would:
     // 1. Check the block at the position (e.g., Chest, Barrel, Furnace)
     // 2. Look up the block entity's inventory from the chunk layer

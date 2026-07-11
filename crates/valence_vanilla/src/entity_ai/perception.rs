@@ -165,8 +165,7 @@ impl Perception {
         target_relationship: EntityRelationship,
     ) -> DetectionResult {
         // Check sight
-        let can_see =
-            self.can_see_with_fov(from_pos, target_pos, from_facing);
+        let can_see = self.can_see_with_fov(from_pos, target_pos, from_facing);
 
         // Check hearing
         let can_hear = self.can_hear(from_pos, target_pos);
@@ -247,7 +246,8 @@ pub fn perception_system(
                 continue;
             }
 
-            let result = perception.can_detect(from_pos, facing, other_pos.0, EntityRelationship::Neutral);
+            let result =
+                perception.can_detect(from_pos, facing, other_pos.0, EntityRelationship::Neutral);
 
             if result.detected {
                 let block_pos = BlockPos::new(
@@ -299,33 +299,17 @@ mod tests {
         let facing = DVec3::new(1.0, 0.0, 0.0);
 
         // Directly in front
-        assert!(perception.can_see_with_fov(
-            DVec3::ZERO,
-            DVec3::new(10.0, 0.0, 0.0),
-            facing
-        ));
+        assert!(perception.can_see_with_fov(DVec3::ZERO, DVec3::new(10.0, 0.0, 0.0), facing));
 
         // 45 degrees to the side (should be visible with 90 degree FOV)
-        assert!(perception.can_see_with_fov(
-            DVec3::ZERO,
-            DVec3::new(10.0, 0.0, 10.0),
-            facing
-        ));
+        assert!(perception.can_see_with_fov(DVec3::ZERO, DVec3::new(10.0, 0.0, 10.0), facing));
 
         // Directly to the side (90 degrees - at the edge)
-        let result = perception.can_see_with_fov(
-            DVec3::ZERO,
-            DVec3::new(0.0, 0.0, 10.0),
-            facing,
-        );
+        let result = perception.can_see_with_fov(DVec3::ZERO, DVec3::new(0.0, 0.0, 10.0), facing);
         // This should be at the edge of the FOV
 
         // Behind (should not be visible)
-        assert!(!perception.can_see_with_fov(
-            DVec3::ZERO,
-            DVec3::new(-10.0, 0.0, 0.0),
-            facing
-        ));
+        assert!(!perception.can_see_with_fov(DVec3::ZERO, DVec3::new(-10.0, 0.0, 0.0), facing));
     }
 
     #[test]

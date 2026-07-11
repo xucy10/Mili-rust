@@ -123,7 +123,9 @@ impl Crop {
             6 => PropValue::_6,
             _ => PropValue::_7,
         };
-        self.crop_type.initial_block_state().set(PropName::Age, age_value)
+        self.crop_type
+            .initial_block_state()
+            .set(PropName::Age, age_value)
     }
 }
 
@@ -132,13 +134,7 @@ pub struct CropPlugin;
 
 impl Plugin for CropPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                crop_growth_system,
-                bone_meal_growth_system,
-            ),
-        );
+        app.add_systems(Update, (crop_growth_system, bone_meal_growth_system));
     }
 }
 

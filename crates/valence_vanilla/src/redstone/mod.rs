@@ -1,10 +1,10 @@
-pub mod signal;
-pub mod wire;
-pub mod torch;
-pub mod repeater;
 pub mod comparator;
 pub mod lamp;
 pub mod piston;
+pub mod repeater;
+pub mod signal;
+pub mod torch;
+pub mod wire;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
@@ -12,15 +12,14 @@ use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 use valence_server::layer::chunk::ChunkLayer;
 
-use signal::{
-    get_horizontal_directions, get_power_level,
-    is_redstone_conductor, offset_pos, RedstoneStrength, RedstoneUpdateEntry,
-    RedstoneUpdateQueue, UpdateType, MAX_SIGNAL,
-};
-use torch::RedstoneTorch;
-use repeater::RedstoneRepeater;
 use comparator::RedstoneComparator;
 use piston::Piston;
+use repeater::RedstoneRepeater;
+use signal::{
+    get_horizontal_directions, get_power_level, is_redstone_conductor, offset_pos,
+    RedstoneStrength, RedstoneUpdateEntry, RedstoneUpdateQueue, UpdateType, MAX_SIGNAL,
+};
+use torch::RedstoneTorch;
 
 pub struct RedstonePlugin;
 
@@ -28,12 +27,7 @@ impl Plugin for RedstonePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RedstoneUpdateQueue>()
             .init_resource::<RedstoneSystemState>()
-            .add_systems(
-                Update,
-                (
-                    update_redstone_components,
-                ),
-            );
+            .add_systems(Update, (update_redstone_components,));
     }
 }
 
@@ -89,12 +83,8 @@ fn update_redstone_components(
                     }
                 }
                 BlockKind::Repeater => {
-                    let changed = process_repeater(
-                        &chunk_layer,
-                        pos,
-                        state,
-                        system_state.current_tick,
-                    );
+                    let changed =
+                        process_repeater(&chunk_layer, pos, state, system_state.current_tick);
                     if let Some((new_state, neighbors)) = changed {
                         chunk_layer.set_block(pos, new_state);
                         for n in neighbors {
@@ -106,12 +96,8 @@ fn update_redstone_components(
                     }
                 }
                 BlockKind::Comparator => {
-                    let changed = process_comparator(
-                        &chunk_layer,
-                        pos,
-                        state,
-                        system_state.current_tick,
-                    );
+                    let changed =
+                        process_comparator(&chunk_layer, pos, state, system_state.current_tick);
                     if let Some((new_state, neighbors)) = changed {
                         chunk_layer.set_block(pos, new_state);
                         for n in neighbors {
@@ -350,11 +336,7 @@ fn process_comparator(
     }
 }
 
-fn process_lamp(
-    chunk_layer: &ChunkLayer,
-    pos: BlockPos,
-    state: BlockState,
-) -> Option<BlockState> {
+fn process_lamp(chunk_layer: &ChunkLayer, pos: BlockPos, state: BlockState) -> Option<BlockState> {
     let mut total_power: RedstoneStrength = 0;
 
     for dir in get_horizontal_directions() {
@@ -485,12 +467,8 @@ fn calc_signal_for_input(
                         for dir in get_horizontal_directions() {
                             let side_pos = offset_pos(above_pos, dir);
                             if let Some(side_state) = get_block_state(chunk_layer, side_pos) {
-                                let power = calc_signal_for_input(
-                                    chunk_layer,
-                                    side_state,
-                                    side_pos,
-                                    dir,
-                                );
+                                let power =
+                                    calc_signal_for_input(chunk_layer, side_state, side_pos, dir);
                                 max_side = max_side.max(power);
                             }
                         }
@@ -576,10 +554,7 @@ pub fn trigger_redstone_update(pos: BlockPos, update_queue: &mut RedstoneUpdateQ
     });
 }
 
-pub fn is_block_powered_at(
-    chunk_layer: &ChunkLayer,
-    pos: BlockPos,
-) -> bool {
+pub fn is_block_powered_at(chunk_layer: &ChunkLayer, pos: BlockPos) -> bool {
     for dir in get_horizontal_directions() {
         let neighbor_pos = offset_pos(pos, dir);
         if let Some(neighbor_state) = get_block_state(chunk_layer, neighbor_pos) {
@@ -601,10 +576,7 @@ pub fn is_block_powered_at(
     false
 }
 
-pub fn get_redstone_signal_at(
-    chunk_layer: &ChunkLayer,
-    pos: BlockPos,
-) -> RedstoneStrength {
+pub fn get_redstone_signal_at(chunk_layer: &ChunkLayer, pos: BlockPos) -> RedstoneStrength {
     if let Some(state) = get_block_state(chunk_layer, pos) {
         match state.to_kind() {
             BlockKind::RedstoneWire => get_power_level(state),
@@ -625,8 +597,7 @@ pub fn get_redstone_signal_at(
                 }
             }
             BlockKind::Comparator => {
-                let comparator =
-                    RedstoneComparator::from_block_state(state).unwrap_or_default();
+                let comparator = RedstoneComparator::from_block_state(state).unwrap_or_default();
                 if comparator.powered {
                     comparator.output_power
                 } else {

@@ -87,8 +87,7 @@ pub fn offset_pos(pos: BlockPos, dir: Direction) -> BlockPos {
 }
 
 pub fn is_redstone_conductor(state: BlockState) -> bool {
-    state.to_kind() == BlockKind::RedstoneBlock
-        || (state.is_opaque() && state.blocks_motion())
+    state.to_kind() == BlockKind::RedstoneBlock || (state.is_opaque() && state.blocks_motion())
 }
 
 pub fn is_wire(state: BlockState) -> bool {
@@ -115,10 +114,7 @@ pub fn is_lamp(state: BlockState) -> bool {
 }
 
 pub fn is_piston(state: BlockState) -> bool {
-    matches!(
-        state.to_kind(),
-        BlockKind::Piston | BlockKind::StickyPiston
-    )
+    matches!(state.to_kind(), BlockKind::Piston | BlockKind::StickyPiston)
 }
 
 pub fn is_redstone_component(state: BlockState) -> bool {

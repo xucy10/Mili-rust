@@ -129,11 +129,7 @@ impl RedstoneRepeater {
         let ticks_since_last = current_tick.wrapping_sub(self.last_tick);
         self.tick_count += ticks_since_last as u8;
 
-        let target_power = if self.input_power > 0 {
-            MAX_SIGNAL
-        } else {
-            0
-        };
+        let target_power = if self.input_power > 0 { MAX_SIGNAL } else { 0 };
 
         if self.powered != (target_power > 0) {
             if self.tick_count >= self.calculate_delay_ticks() as u8 {
@@ -157,11 +153,7 @@ impl RedstoneRepeater {
     }
 
     pub fn needs_scheduled_tick(&self) -> bool {
-        let target_power = if self.input_power > 0 {
-            MAX_SIGNAL
-        } else {
-            0
-        };
+        let target_power = if self.input_power > 0 { MAX_SIGNAL } else { 0 };
 
         self.powered != (target_power > 0)
     }

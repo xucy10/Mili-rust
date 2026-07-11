@@ -72,9 +72,7 @@ fn setup(
     // 放置一些耕地和作物示例
     for x in -2..=2 {
         // 耕地
-        layer
-            .chunk
-            .set_block([x, SPAWN_Y, 5], BlockState::FARMLAND);
+        layer.chunk.set_block([x, SPAWN_Y, 5], BlockState::FARMLAND);
 
         // 小麦作物
         layer
@@ -88,9 +86,7 @@ fn setup(
         .set_block([0, SPAWN_Y + 1, 8], BlockState::HOPPER);
 
     // 放置箱子
-    layer
-        .chunk
-        .set_block([0, SPAWN_Y, 8], BlockState::CHEST);
+    layer.chunk.set_block([0, SPAWN_Y, 8], BlockState::CHEST);
 
     commands.spawn(layer);
 }
@@ -104,7 +100,7 @@ fn init_clients(
 ) {
     for mut client in &mut clients {
         let layer_entity = layers.single_mut();
-        client.set_player_list(( &server ).player_list);
+        client.set_player_list((&server).player_list);
         client.teleport(
             IVec3::new(0, SPAWN_Y + 2, 0),
             layers.single(),

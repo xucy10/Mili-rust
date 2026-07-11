@@ -272,7 +272,11 @@ impl TradeTable {
         Self::default()
     }
 
-    pub fn get_trades(&self, profession: &VillagerProfession, level: i32) -> Option<&Vec<TradeOffer>> {
+    pub fn get_trades(
+        &self,
+        profession: &VillagerProfession,
+        level: i32,
+    ) -> Option<&Vec<TradeOffer>> {
         self.trades.get(profession)?.get((level - 1) as usize)
     }
 
@@ -396,16 +400,16 @@ pub fn villager_ai_system(
             }
             VillagerActivity::Working => {
                 if ai.has_workstation && ai.activity_timer > Duration::from_secs(5) {
-                    ai.target_pos = ai.work_pos.map(|wp| {
-                        DVec3::new(wp.x as f64, wp.y as f64, wp.z as f64)
-                    });
+                    ai.target_pos = ai
+                        .work_pos
+                        .map(|wp| DVec3::new(wp.x as f64, wp.y as f64, wp.z as f64));
                 }
             }
             VillagerActivity::Resting => {
                 if ai.has_bed && ai.activity_timer > Duration::from_secs(5) {
-                    ai.target_pos = ai.bed_pos.map(|bp| {
-                        DVec3::new(bp.x as f64, bp.y as f64, bp.z as f64)
-                    });
+                    ai.target_pos = ai
+                        .bed_pos
+                        .map(|bp| DVec3::new(bp.x as f64, bp.y as f64, bp.z as f64));
                 }
             }
             VillagerActivity::Gossiping => {
@@ -415,9 +419,9 @@ pub fn villager_ai_system(
             }
             VillagerActivity::Trading => {
                 if ai.has_workstation {
-                    ai.target_pos = ai.work_pos.map(|wp| {
-                        DVec3::new(wp.x as f64, wp.y as f64, wp.z as f64)
-                    });
+                    ai.target_pos = ai
+                        .work_pos
+                        .map(|wp| DVec3::new(wp.x as f64, wp.y as f64, wp.z as f64));
                 }
             }
             VillagerActivity::Fleeing => {
@@ -426,9 +430,7 @@ pub fn villager_ai_system(
                         ai.panic_timer = None;
                     }
                 }
-                ai.target_pos = Some(
-                    DVec3::new(_pos.0.x + 16.0, _pos.0.y, _pos.0.z),
-                );
+                ai.target_pos = Some(DVec3::new(_pos.0.x + 16.0, _pos.0.y, _pos.0.z));
             }
             VillagerActivity::Gathering | VillagerActivity::Meeting => {
                 if let Some(home) = ai.home_pos {
@@ -469,7 +471,10 @@ fn determine_activity(ai: &VillagerAi, time: &TimeOfDay) -> VillagerActivity {
 /// System that binds villagers to nearby workstations.
 pub fn workstation_binding_system(
     mut villager_query: Query<(Entity, &mut VillagerAi, &Position)>,
-    mut workstation_query: Query<(Entity, &mut VillagerWorkstation, &Position), Without<VillagerAi>>,
+    mut workstation_query: Query<
+        (Entity, &mut VillagerWorkstation, &Position),
+        Without<VillagerAi>,
+    >,
 ) {
     for (v_entity, mut ai, v_pos) in &mut villager_query {
         if ai.has_workstation {
@@ -495,7 +500,11 @@ pub fn workstation_binding_system(
         }
 
         if let Some((ws_entity, ws_pos)) = best_workstation {
-            ai.work_pos = Some(BlockPos::new(ws_pos.x as i32, ws_pos.y as i32, ws_pos.z as i32));
+            ai.work_pos = Some(BlockPos::new(
+                ws_pos.x as i32,
+                ws_pos.y as i32,
+                ws_pos.z as i32,
+            ));
             ai.has_workstation = true;
             if let Ok((_, mut workstation, _)) = workstation_query.get_mut(ws_entity) {
                 workstation.bound_villager = Some(v_entity);
@@ -530,7 +539,11 @@ pub fn bed_binding_system(
         }
 
         if let Some((bed_entity, bed_pos)) = best_bed {
-            ai.bed_pos = Some(BlockPos::new(bed_pos.x as i32, bed_pos.y as i32, bed_pos.z as i32));
+            ai.bed_pos = Some(BlockPos::new(
+                bed_pos.x as i32,
+                bed_pos.y as i32,
+                bed_pos.z as i32,
+            ));
             ai.has_bed = true;
             if let Ok((_, mut bed, _)) = bed_query.get_mut(bed_entity) {
                 bed.bound_villager = Some(v_entity);
@@ -540,9 +553,7 @@ pub fn bed_binding_system(
 }
 
 /// System that moves villagers towards their target position.
-pub fn villager_movement_system(
-    mut query: Query<(&mut Position, &VillagerAi)>,
-) {
+pub fn villager_movement_system(mut query: Query<(&mut Position, &VillagerAi)>) {
     for (mut pos, ai) in &mut query {
         if let Some(target) = ai.target_pos {
             let dir = target - pos.0;

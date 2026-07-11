@@ -215,12 +215,7 @@ fn get_walkable_neighbors(ctx: &PathfindingContext, pos: BlockPos) -> Vec<(Block
     let mut neighbors = Vec::with_capacity(12);
 
     // Check 4 cardinal directions on same Y level
-    let horizontal_dirs = [
-        (1, 0, 0),
-        (-1, 0, 0),
-        (0, 0, 1),
-        (0, 0, -1),
-    ];
+    let horizontal_dirs = [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)];
 
     for &(dx, dy, dz) in &horizontal_dirs {
         let neighbor = BlockPos::new(pos.x + dx, pos.y + dy, pos.z + dz);
@@ -297,9 +292,7 @@ fn is_passable(ctx: &PathfindingContext, pos: BlockPos) -> bool {
         Some(block_ref) => {
             let state = block_ref.state;
             // Passable blocks: air, water (if swimming allowed), plants, etc.
-            state.is_air()
-                || state.is_replaceable()
-                || (ctx.allow_swim && state.is_liquid())
+            state.is_air() || state.is_replaceable() || (ctx.allow_swim && state.is_liquid())
         }
         None => false, // Beyond world border = not passable
     }

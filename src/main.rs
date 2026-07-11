@@ -75,9 +75,7 @@ fn setup(
             layer
                 .chunk
                 .set_block([x, SPAWN_Y, z], BlockState::GRASS_BLOCK);
-            layer
-                .chunk
-                .set_block([x, SPAWN_Y - 1, z], BlockState::DIRT);
+            layer.chunk.set_block([x, SPAWN_Y - 1, z], BlockState::DIRT);
             layer
                 .chunk
                 .set_block([x, SPAWN_Y - 2, z], BlockState::STONE);
@@ -85,9 +83,7 @@ fn setup(
             // 简单的山丘
             let height = ((x as f64 * 0.1).sin() * (z as f64 * 0.1).cos() * 5.0) as i32;
             for y in SPAWN_Y + 1..=SPAWN_Y + height {
-                layer
-                    .chunk
-                    .set_block([x, y, z], BlockState::STONE);
+                layer.chunk.set_block([x, y, z], BlockState::STONE);
             }
         }
     }
@@ -125,14 +121,16 @@ fn create_redstone_demo(layer: &mut LayerBundle) {
     }
 
     // 红石火把（信号源）
-    layer
-        .chunk
-        .set_block([base_x - 1, SPAWN_Y + 1, base_z], BlockState::REDSTONE_TORCH);
+    layer.chunk.set_block(
+        [base_x - 1, SPAWN_Y + 1, base_z],
+        BlockState::REDSTONE_TORCH,
+    );
 
     // 红石灯（显示信号）
-    layer
-        .chunk
-        .set_block([base_x + 10, SPAWN_Y + 1, base_z], BlockState::REDSTONE_LAMP);
+    layer.chunk.set_block(
+        [base_x + 10, SPAWN_Y + 1, base_z],
+        BlockState::REDSTONE_LAMP,
+    );
 
     // 中继器
     layer
@@ -140,9 +138,10 @@ fn create_redstone_demo(layer: &mut LayerBundle) {
         .set_block([base_x + 5, SPAWN_Y + 1, base_z + 1], BlockState::REPEATER);
 
     // 比较器
-    layer
-        .chunk
-        .set_block([base_x + 5, SPAWN_Y + 1, base_z - 1], BlockState::COMPARATOR);
+    layer.chunk.set_block(
+        [base_x + 5, SPAWN_Y + 1, base_z - 1],
+        BlockState::COMPARATOR,
+    );
 
     // 活塞
     layer
@@ -259,9 +258,6 @@ fn handle_neighbor_updates(mut events: EventReader<NeighborUpdateEvent>) {
     }
 }
 
-fn auto_save_system(
-    mut save_manager: ResMut<WorldSaveManager>,
-    time: Res<Time>,
-) {
+fn auto_save_system(mut save_manager: ResMut<WorldSaveManager>, time: Res<Time>) {
     save_manager.update(time.delta());
 }

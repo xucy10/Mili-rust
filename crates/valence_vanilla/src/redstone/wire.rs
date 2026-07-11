@@ -115,14 +115,19 @@ impl RedstoneWire {
         state
     }
 
-    pub fn calculate_connections(&self, pos: BlockPos, get_block: impl Fn(BlockPos) -> BlockState) -> [WireConnection; 4] {
+    pub fn calculate_connections(
+        &self,
+        pos: BlockPos,
+        get_block: impl Fn(BlockPos) -> BlockState,
+    ) -> [WireConnection; 4] {
         let mut connections = [WireConnection::None; 4];
 
         for (i, dir) in get_horizontal_directions().iter().enumerate() {
             let neighbor_pos = offset_pos(pos, *dir);
             let neighbor_state = get_block(neighbor_pos);
 
-            connections[i] = self.calculate_connection_for_direction(*dir, neighbor_state, get_block);
+            connections[i] =
+                self.calculate_connection_for_direction(*dir, neighbor_state, get_block);
         }
 
         connections
