@@ -255,7 +255,7 @@ pub struct RedstoneUpdateEntry {
     pub update_type: UpdateType,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct RedstoneUpdateQueue {
     entries: Vec<RedstoneUpdateEntry>,
     processed: Vec<BlockPos>,

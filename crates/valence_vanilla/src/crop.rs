@@ -2,8 +2,8 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use rand::Rng;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
-use valence_protocol::BlockPos;
-use valence_server::prelude::*;
+use valence_protocol::{BlockPos, ItemKind, ItemStack};
+use valence_server::layer::chunk::ChunkLayer;
 
 /// Crop types with their properties.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -67,11 +67,13 @@ pub struct Crop {
     pub max_age: i32,
     /// Base growth chance (1 in N per tick).
     pub growth_chance: u32,
+    /// The block position of this crop in the world.
+    pub pos: BlockPos,
 }
 
 impl Crop {
     /// Creates a new crop of the specified type.
-    pub fn new(crop_type: CropType) -> Self {
+    pub fn new(crop_type: CropType, pos: BlockPos) -> Self {
         let max_age = crop_type.max_age();
         let growth_chance = crop_type.growth_chance();
 
@@ -80,6 +82,7 @@ impl Crop {
             age: 0,
             max_age,
             growth_chance,
+            pos,
         }
     }
 
@@ -140,12 +143,12 @@ impl Plugin for CropPlugin {
 
 /// System that handles random crop growth ticks.
 fn crop_growth_system(
-    mut crops: Query<(&mut Crop, &BlockPos)>,
+    mut crops: Query<&mut Crop>,
     mut chunk_layers: Query<&mut ChunkLayer>,
 ) {
     let mut rng = rand::thread_rng();
 
-    for (mut crop, crop_pos) in &mut crops {
+    for mut crop in &mut crops {
         if crop.is_fully_grown() {
             continue;
         }
@@ -155,7 +158,7 @@ fn crop_growth_system(
             continue;
         }
 
-        let pos = *crop_pos;
+        let pos = crop.pos;
         let light_level = get_light_level(pos, &chunk_layers);
         let has_water = check_nearby_water(pos, &chunk_layers);
 
@@ -168,10 +171,10 @@ fn crop_growth_system(
 
 /// System that handles bone-mealed crop growth (applied instantly).
 fn bone_meal_growth_system(
-    mut crops: Query<(&mut Crop, &BlockPos)>,
+    mut crops: Query<&mut Crop>,
     mut chunk_layers: Query<&mut ChunkLayer>,
 ) {
-    for (mut crop, crop_pos) in &mut crops {
+    for mut crop in &mut crops {
         if crop.is_fully_grown() {
             continue;
         }
@@ -180,7 +183,7 @@ fn bone_meal_growth_system(
         crop.grow();
         crop.grow();
         if crop.age != old_age {
-            set_crop_block_state(&crop, *crop_pos, &mut chunk_layers);
+            set_crop_block_state(&crop, crop.pos, &mut chunk_layers);
         }
     }
 }

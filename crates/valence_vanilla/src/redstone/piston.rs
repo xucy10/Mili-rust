@@ -2,7 +2,7 @@ use bevy_ecs::prelude::*;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
-use super::signal::{get_direction_offset, get_opposite_direction, offset_pos, RedstoneStrength};
+use super::signal::{get_opposite_direction, offset_pos, RedstoneStrength};
 
 #[derive(Component, Debug)]
 pub struct Piston {

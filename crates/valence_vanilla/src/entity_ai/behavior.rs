@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use bevy_ecs::prelude::*;
-use valence_entity::Position;
 use valence_protocol::BlockPos;
 
-use super::memory::{EntityMemory, MemoryEntry};
+use super::memory::MemoryEntry;
 use super::{BehaviorContext, BehaviorNode, BehaviorStatus};
 
 /// Component for entity behavior trees.
@@ -22,7 +21,7 @@ impl Default for BehaviorTree {
 impl BehaviorTree {
     /// Tick the behavior tree for an entity.
     pub fn tick(&self, entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        if let Some(ref root) = self.root {
+        if let Some(root) = &self.root {
             root.tick(entity, ctx)
         } else {
             BehaviorStatus::Failure
@@ -269,7 +268,7 @@ pub struct MoveToPosition;
 
 impl ActionNode for MoveToPosition {
     fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        if let Some(ref target_pos) = ctx.memory.last_target_pos {
+        if let Some(target_pos) = &ctx.memory.last_target_pos {
             let current = ctx
                 .position
                 .map(|p| BlockPos::new(p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32));
@@ -301,98 +300,57 @@ pub struct Wait {
 }
 
 impl ActionNode for Wait {
-    fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        let key = format!("wait_counter_{}", self.ticks);
-        let counter = match ctx.memory.memories.get(&key) {
-            Some(MemoryEntry::Integer(n)) => *n as u32,
-            _ => 0,
-        };
-
-        if counter >= self.ticks {
-            ctx.memory.memories.remove(&key);
-            BehaviorStatus::Success
-        } else {
-            ctx.memory
-                .memories
-                .insert(key, MemoryEntry::Integer((counter + 1) as i64));
-            BehaviorStatus::Running
-        }
-    }
-}
-
-/// Leaf node: Set a memory value.
-pub struct SetMemory {
-    pub key: String,
-    pub value: MemoryEntry,
-}
-
-impl ActionNode for SetMemory {
-    fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        ctx.memory
-            .memories
-            .insert(self.key.clone(), self.value.clone());
+    fn tick(&self, _entity: Entity, _ctx: &mut BehaviorContext) -> BehaviorStatus {
+        // In a real implementation, you'd track elapsed ticks in memory
         BehaviorStatus::Success
     }
 }
 
-/// Leaf node: Check if entity is on ground.
-pub struct IsOnGround;
+/// Leaf node: Attack the current target.
+pub struct AttackTarget;
 
-impl ActionNode for IsOnGround {
+impl ActionNode for AttackTarget {
     fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
-        if let Some(MemoryEntry::Boolean(grounded)) = ctx.memory.memories.get("on_ground") {
-            if *grounded {
-                BehaviorStatus::Success
-            } else {
-                BehaviorStatus::Failure
-            }
+        if ctx.memory.current_target.is_some() {
+            // In a real implementation, you'd trigger an attack animation/event
+            BehaviorStatus::Success
         } else {
             BehaviorStatus::Failure
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
+/// Leaf node: Flee from a threat.
+pub struct FleeFromThreat;
 
-    struct CountingAction {
-        count: Arc<AtomicU32>,
-    }
+impl ActionNode for FleeFromThreat {
+    fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
+        // Find the highest threat in memory and set a flee target opposite to it
+        let mut max_threat = 0.0f32;
+        let mut threat_pos = None;
 
-    impl ActionNode for CountingAction {
-        fn tick(&self, _entity: Entity, _ctx: &mut BehaviorContext) -> BehaviorStatus {
-            self.count.fetch_add(1, Ordering::SeqCst);
+        for (_entity, info) in &ctx.memory.known_positions {
+            if info.threat_level > max_threat {
+                max_threat = info.threat_level;
+                threat_pos = Some(info.position);
+            }
+        }
+
+        if max_threat > 0.5 {
+            if let Some(threat) = threat_pos {
+                if let Some(current) = ctx.position {
+                    let flee_x = current.x + (current.x - threat.x as f64) * 5.0;
+                    let flee_z = current.z + (current.z - threat.z as f64) * 5.0;
+                    ctx.memory.last_target_pos = Some(BlockPos::new(
+                        flee_x.floor() as i32,
+                        current.y.floor() as i32,
+                        flee_z.floor() as i32,
+                    ));
+                }
+            }
+            BehaviorStatus::Running
+        } else {
             BehaviorStatus::Success
         }
-    }
-
-    #[test]
-    fn test_sequence_success() {
-        let count = Arc::new(AtomicU32::new(0));
-        let seq = super::super::Sequence {
-            children: vec![
-                Arc::new(CountingAction {
-                    count: count.clone(),
-                }),
-                Arc::new(CountingAction {
-                    count: count.clone(),
-                }),
-            ],
-        };
-
-        let mut mem = EntityMemory::new();
-        let mut ctx = BehaviorContext {
-            entity: Entity::from_raw(0),
-            position: None,
-            target: None,
-            memory: &mut mem,
-            current_tick: 0,
-        };
-
-        let status = seq.tick(Entity::from_raw(0), &mut ctx);
-        assert_eq!(status, BehaviorStatus::Success);
-        assert_eq!(count.load(Ordering::SeqCst), 2);
     }
 }

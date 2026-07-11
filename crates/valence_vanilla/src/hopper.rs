@@ -1,9 +1,8 @@
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use valence_generated::block::BlockKind;
 use valence_inventory::Inventory;
-use valence_protocol::{BlockPos, Direction};
-use valence_server::prelude::*;
+use valence_protocol::{BlockPos, Direction, ItemStack};
+use valence_server::layer::chunk::ChunkLayer;
 
 /// Cooldown duration in ticks (20 ticks = 1 second).
 const HOPPER_COOLDOWN: i32 = 8;
@@ -18,6 +17,8 @@ pub struct Hopper {
     /// The direction items are pushed out (e.g., Down, North, South, East, West).
     /// If `None`, items are pushed down by default.
     pub output_direction: Direction,
+    /// The block position of this hopper in the world.
+    pub pos: BlockPos,
 }
 
 impl Default for Hopper {
@@ -26,23 +27,25 @@ impl Default for Hopper {
             transfer_cooldown: 0,
             enabled: true,
             output_direction: Direction::Down,
+            pos: BlockPos::new(0, 0, 0),
         }
     }
 }
 
 impl Hopper {
     /// Creates a new hopper with the specified output direction.
-    pub fn new(output_direction: Direction) -> Self {
+    pub fn new(output_direction: Direction, pos: BlockPos) -> Self {
         Self {
             transfer_cooldown: 0,
             enabled: true,
             output_direction,
+            pos,
         }
     }
 
     /// Creates a hopper that outputs downward.
-    pub fn downward() -> Self {
-        Self::new(Direction::Down)
+    pub fn downward(pos: BlockPos) -> Self {
+        Self::new(Direction::Down, pos)
     }
 
     /// Check if the hopper can transfer items.
@@ -84,18 +87,18 @@ impl Plugin for HopperPlugin {
 
 /// System that processes hopper item transfers every tick.
 fn hopper_system(
-    mut hoppers: Query<(Entity, &mut Hopper, &mut Inventory, &BlockPos)>,
+    mut hoppers: Query<(Entity, &mut Hopper, &mut Inventory)>,
     mut inventories: Query<&mut Inventory, (Without<Hopper>, With<HopperReceiver>)>,
     chunk_layers: Query<&ChunkLayer>,
 ) {
-    for (_entity, mut hopper, mut hopper_inv, hopper_pos) in &mut hoppers {
+    for (_entity, mut hopper, mut hopper_inv) in &mut hoppers {
         hopper.tick_cooldown();
 
         if !hopper.can_transfer() {
             continue;
         }
 
-        let pos = *hopper_pos;
+        let pos = hopper.pos;
 
         // Try to pull items from above first
         if try_pull_items(&mut hopper_inv, pos, &mut inventories, &chunk_layers) {

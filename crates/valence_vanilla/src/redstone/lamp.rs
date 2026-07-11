@@ -1,6 +1,5 @@
 use bevy_ecs::prelude::*;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
-use valence_protocol::{BlockPos, Direction};
 
 use super::signal::RedstoneStrength;
 

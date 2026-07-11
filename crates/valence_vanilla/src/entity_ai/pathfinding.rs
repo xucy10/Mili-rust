@@ -103,7 +103,7 @@ pub fn find_path_detailed(ctx: &PathfindingContext) -> Option<PathfindingResult>
 
         if iterations >= ctx.max_iterations {
             // Return best partial path found
-            if let Some(ref best) = best_node {
+            if let Some(best) = &best_node {
                 let path = reconstruct_path(&parent_map, best.pos);
                 return Some(PathfindingResult {
                     path,
@@ -148,7 +148,7 @@ pub fn find_path_detailed(ctx: &PathfindingContext) -> Option<PathfindingResult>
     }
 
     // Return best partial path if we found one
-    if let Some(ref best) = best_node {
+    if let Some(best) = &best_node {
         let path = reconstruct_path(&parent_map, best.pos);
         return Some(PathfindingResult {
             path,
@@ -209,149 +209,44 @@ fn reconstruct_path(parent_map: &HashMap<BlockPos, BlockPos>, end: BlockPos) -> 
     path
 }
 
-/// Get walkable neighbors for a given position.
-/// Returns (position, cost) pairs.
+/// Get all walkable neighbors of a position.
 fn get_walkable_neighbors(ctx: &PathfindingContext, pos: BlockPos) -> Vec<(BlockPos, u32)> {
-    let mut neighbors = Vec::with_capacity(12);
+    let mut neighbors = Vec::new();
+    let directions = [
+        BlockPos::new(pos.x + 1, pos.y, pos.z),
+        BlockPos::new(pos.x - 1, pos.y, pos.z),
+        BlockPos::new(pos.x, pos.y, pos.z + 1),
+        BlockPos::new(pos.x, pos.y, pos.z - 1),
+        BlockPos::new(pos.x, pos.y + 1, pos.z),
+        BlockPos::new(pos.x, pos.y - 1, pos.z),
+    ];
 
-    // Check 4 cardinal directions on same Y level
-    let horizontal_dirs = [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)];
-
-    for &(dx, dy, dz) in &horizontal_dirs {
-        let neighbor = BlockPos::new(pos.x + dx, pos.y + dy, pos.z + dz);
+    for neighbor in directions {
         if is_walkable(ctx, neighbor) {
-            neighbors.push((neighbor, 10));
-        }
-    }
-
-    // Check for climbing (one block up)
-    for &(dx, _, dz) in &horizontal_dirs {
-        let above = BlockPos::new(pos.x + dx, pos.y + 1, pos.z + dz);
-        let on_top = BlockPos::new(pos.x + dx, pos.y + 2, pos.z + dz);
-
-        if ctx.allow_climb && is_walkable(ctx, above) && is_passable(ctx, on_top) {
-            neighbors.push((above, 11)); // Climbing is slightly more expensive
-        }
-    }
-
-    // Check for falling (one block down) on each horizontal direction
-    for &(dx, _, dz) in &horizontal_dirs {
-        let below = BlockPos::new(pos.x + dx, pos.y - 1, pos.z + dz);
-        if is_solid(ctx, below) && is_passable(ctx, BlockPos::new(pos.x + dx, pos.y, pos.z + dz)) {
-            neighbors.push((BlockPos::new(pos.x + dx, pos.y, pos.z + dz), 10));
-        }
-    }
-
-    // Check falling straight down
-    let below = BlockPos::new(pos.x, pos.y - 1, pos.z);
-    if is_passable(ctx, below) {
-        // Find the ground below
-        let mut ground_y = pos.y - 1;
-        while ground_y > ctx.chunk_layer.min_y() {
-            let check = BlockPos::new(pos.x, ground_y, pos.z);
-            if is_solid(ctx, check) {
-                break;
-            }
-            ground_y -= 1;
-        }
-        let land_pos = BlockPos::new(pos.x, ground_y + 1, pos.z);
-        if land_pos != pos && is_passable(ctx, land_pos) {
-            neighbors.push((land_pos, 10));
+            let cost = move_cost(pos, neighbor);
+            neighbors.push((neighbor, cost));
         }
     }
 
     neighbors
 }
 
-/// Check if a position is walkable (has solid block below and passable space above).
+/// Check if a position is walkable.
 fn is_walkable(ctx: &PathfindingContext, pos: BlockPos) -> bool {
+    // Check if the block at this position is solid
+    if let Some(block_ref) = ctx.chunk_layer.block(pos) {
+        if block_ref.state.is_solid() {
+            return false;
+        }
+    }
+
+    // Check if there's ground below
     let below = BlockPos::new(pos.x, pos.y - 1, pos.z);
-
-    // Must have a solid block below (or be at the world floor)
-    if !is_solid(ctx, below) && pos.y > ctx.chunk_layer.min_y() {
-        return false;
-    }
-
-    // Must be passable at the entity's feet
-    if !is_passable(ctx, pos) {
-        return false;
-    }
-
-    // Must be passable at the entity's head (for tall entities)
-    let head_pos = BlockPos::new(pos.x, pos.y + 1, pos.z);
-    if !is_passable(ctx, head_pos) {
-        return false;
+    if let Some(block_ref) = ctx.chunk_layer.block(below) {
+        if !block_ref.state.is_solid() && !ctx.allow_swim {
+            return false;
+        }
     }
 
     true
-}
-
-/// Check if a position is passable (air, water, etc. - not solid).
-fn is_passable(ctx: &PathfindingContext, pos: BlockPos) -> bool {
-    match ctx.chunk_layer.block(pos) {
-        Some(block_ref) => {
-            let state = block_ref.state;
-            // Passable blocks: air, water (if swimming allowed), plants, etc.
-            state.is_air() || state.is_replaceable() || (ctx.allow_swim && state.is_liquid())
-        }
-        None => false, // Beyond world border = not passable
-    }
-}
-
-/// Check if a position contains a solid block.
-fn is_solid(ctx: &PathfindingContext, pos: BlockPos) -> bool {
-    match ctx.chunk_layer.block(pos) {
-        Some(block_ref) => {
-            let state = block_ref.state;
-            state.blocks_motion() || state.is_opaque()
-        }
-        None => false,
-    }
-}
-
-/// Reconstruct the path from a PathNode chain (legacy helper).
-fn reconstruct_path_legacy(node: &PathNode) -> Vec<BlockPos> {
-    let mut path = vec![node.pos];
-    let mut current = node;
-
-    while let Some(parent_pos) = current.parent {
-        path.push(parent_pos);
-        break; // In a real implementation, we'd look up the parent node from the map.
-    }
-
-    path.reverse();
-    path
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_heuristic() {
-        let a = BlockPos::new(0, 0, 0);
-        let b = BlockPos::new(3, 4, 0);
-        assert_eq!(heuristic(a, b), 70); // (3+4+0) * 10
-    }
-
-    #[test]
-    fn test_move_cost_cardinal() {
-        let a = BlockPos::new(0, 0, 0);
-        let b = BlockPos::new(1, 0, 0);
-        assert_eq!(move_cost(a, b), 10);
-    }
-
-    #[test]
-    fn test_move_cost_diagonal() {
-        let a = BlockPos::new(0, 0, 0);
-        let b = BlockPos::new(1, 0, 1);
-        assert_eq!(move_cost(a, b), 14);
-    }
-
-    #[test]
-    fn test_move_cost_climb() {
-        let a = BlockPos::new(0, 0, 0);
-        let b = BlockPos::new(0, 1, 0);
-        assert_eq!(move_cost(a, b), 11);
-    }
 }

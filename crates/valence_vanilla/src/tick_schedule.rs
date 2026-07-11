@@ -224,9 +224,9 @@ fn process_random_ticks(
                 let sect_min_y = min_y + sect_idx as i32 * 16;
 
                 for _ in 0..speed {
-                    let local_x = rng.gen_range(0u32..16);
-                    let local_y = rng.gen_range(0u32..16);
-                    let local_z = rng.gen_range(0u32..16);
+                    let local_x = rng.gen_range(0_u32..16);
+                    let local_y = rng.gen_range(0_u32..16);
+                    let local_z = rng.gen_range(0_u32..16);
 
                     let global_x = chunk_pos.x * 16 + local_x as i32;
                     let global_y = sect_min_y + local_y as i32;

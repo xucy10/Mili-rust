@@ -2,10 +2,7 @@ use bevy_ecs::prelude::*;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
-use super::signal::{
-    get_direction_offset, get_opposite_direction, get_power_level, offset_pos, RedstoneSignal,
-    RedstoneStrength, SignalType, MAX_SIGNAL,
-};
+use super::signal::{get_opposite_direction, get_power_level, offset_pos, RedstoneStrength, MAX_SIGNAL};
 
 #[derive(Component, Debug)]
 pub struct RedstoneRepeater {
