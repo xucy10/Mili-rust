@@ -123,7 +123,8 @@
     "zombie_villager": 120,
     "zombified_piglin": 121,
     "player": 122,
-    "fishing_bobber": 123
+    "fishing_bobber": 123,
+    "sulfur_cube": 124
   },
   "entity_status": {
     "add_sprinting_particles_or_reset_spawner_minecart_spawn_delay": 1,
