@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use bevy_time::{Timer, TimerMode};
+use bevy_time::{Time, Timer, TimerMode};
 use tracing::{error, info};
 use valence_server::ChunkLayer;
 
