@@ -2407,9 +2407,8 @@ unsafe impl JavaStrSliceIndex for RangeInclusive<usize> {
     fn check_bounds_fail(self, slice: &JavaStr) -> ! {
         if *self.end() == usize::MAX {
             str_end_index_overflow_fail()
-        } else {
-            into_slice_range(self).check_bounds_fail(slice)
         }
+        into_slice_range(self).check_bounds_fail(slice)
     }
 
     #[inline]
