@@ -1,4 +1,4 @@
-#![doc = include_str!("../README.md")]
+#![allow(clippy::absurd_extreme_comparisons)]
 
 pub mod level_dat;
 pub mod save_system;

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
+use bevy_time::{Timer, TimerMode};
 use tracing::{error, info};
 use valence_server::ChunkLayer;
 
@@ -66,7 +67,7 @@ impl WorldSaveManager {
 
     /// Saves the level.dat file.
     pub fn save_level_dat(&self) -> Result<(), LevelDatError> {
-        if let Some(ref level_dat) = self.level_dat {
+        if let Some(level_dat) = &self.level_dat {
             let path = self.world_path.join("level.dat");
             level_dat.write(&path)?;
             info!("Saved level.dat to {}", path.display());
@@ -244,7 +245,7 @@ pub struct WorldSavePlugin;
 impl Plugin for WorldSavePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, (update_save_timer, auto_save_system).chain())
-            .add_systems(PostUpdate, shutdown_save_system.before(bevy_app::Main));
+            .add_systems(Last, shutdown_save_system);
     }
 }
 

@@ -82,7 +82,7 @@ impl Default for LevelData {
             border_size: 60000000.0,
             border_safe_zone: 5.0,
             border_teleport_boundary: 29999984.0,
-            border_warning_blocks: 5,
+            border_warning_blocks: 5.0,
             border_warning_time: 5.0,
             clear_weather_time: 0,
             difficulty: 2, // Normal
@@ -164,12 +164,15 @@ impl LevelDat {
     fn from_compound(mut compound: Compound) -> Result<Self> {
         let data_version = compound
             .remove("DataVersion")
-            .and_then(|v| v.as_int())
+            .and_then(|v| v.as_i32())
             .unwrap_or(3715);
 
         let data_compound = compound
             .remove("Data")
-            .and_then(|v| v.into_compound())
+            .and_then(|v| match v {
+                Value::Compound(c) => Some(c),
+                _ => None,
+            })
             .ok_or_else(|| LevelDatError::MissingField("Data".to_owned()))?;
 
         let level_data = Self::parse_level_data(data_compound)?;
@@ -182,46 +185,55 @@ impl LevelDat {
 
     fn parse_level_data(mut compound: Compound) -> Result<LevelData> {
         let get_int = |c: &mut Compound, key: &str, default: i32| -> i32 {
-            c.remove(key).and_then(|v| v.as_int()).unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_i32()).unwrap_or(default)
         };
 
         let get_byte = |c: &mut Compound, key: &str, default: i8| -> i8 {
-            c.remove(key).and_then(|v| v.as_byte()).unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_i8()).unwrap_or(default)
         };
 
         let get_bool = |c: &mut Compound, key: &str, default: bool| -> bool {
             c.remove(key)
-                .and_then(|v| v.as_byte())
+                .and_then(|v| v.as_i8())
                 .map(|b| b != 0)
                 .unwrap_or(default)
         };
 
         let get_long = |c: &mut Compound, key: &str, default: i64| -> i64 {
-            c.remove(key).and_then(|v| v.as_long()).unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_i64()).unwrap_or(default)
         };
 
         let get_float = |c: &mut Compound, key: &str, default: f32| -> f32 {
-            c.remove(key).and_then(|v| v.as_float()).unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_f32()).unwrap_or(default)
         };
 
         let get_double = |c: &mut Compound, key: &str, default: f64| -> f64 {
-            c.remove(key).and_then(|v| v.as_double()).unwrap_or(default)
+            c.remove(key).and_then(|v| v.as_f64()).unwrap_or(default)
         };
 
         let get_string = |c: &mut Compound, key: &str, default: &str| -> String {
             c.remove(key)
-                .and_then(|v| v.into_string())
+                .and_then(|v| match v {
+                    Value::String(s) => Some(s),
+                    _ => None,
+                })
                 .unwrap_or_else(|| default.to_owned())
         };
 
         let generator_options = compound
             .remove("generatorOptions")
-            .and_then(|v| v.into_compound())
+            .and_then(|v| match v {
+                Value::Compound(c) => Some(c),
+                _ => None,
+            })
             .unwrap_or_default();
 
         let version = compound
             .remove("Version")
-            .and_then(|v| v.into_compound())
+            .and_then(|v| match v {
+                Value::Compound(c) => Some(c),
+                _ => None,
+            })
             .unwrap_or_default();
 
         Ok(LevelData {
@@ -297,7 +309,7 @@ impl LevelDat {
         let mut root = Compound::new();
         root.insert("DataVersion".to_owned(), Value::Int(self.data_version));
 
-        let mut data = self.level_data.to_compound();
+        let data = self.level_data.to_compound();
         root.insert("Data".to_owned(), Value::Compound(data));
 
         root
