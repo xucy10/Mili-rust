@@ -6220,5 +6220,29 @@
       "size_y": 1.9500000476837158,
       "size_z": 0.6000000238418579
     }
+  },
+  "SulfurCubeEntity": {
+    "parent": "HostileEntity",
+    "type": "sulfur_cube",
+    "translation_key": "entity.minecraft.sulfur_cube",
+    "fields": [],
+    "attributes": [
+      {
+        "name": "generic.max_health",
+        "base_value": 10.0
+      },
+      {
+        "name": "generic.follow_range",
+        "base_value": 16.0
+      },
+      {
+        "name": "generic.movement_speed",
+        "base_value": 0.3
+      },
+      {
+        "name": "generic.knockback_resistance",
+        "base_value": 0.0
+      }
+    ]
   }
 }
