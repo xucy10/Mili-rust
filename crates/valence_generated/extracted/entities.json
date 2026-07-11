@@ -1,0 +1,22 @@
+{
+  "entities": [
+    {
+      "id": 0,
+      "ident": "minecraft:sulfur_cube",
+      "name": "sulfur_cube",
+      "category": "monster",
+      "health": 10.0,
+      "width": 0.98,
+      "height": 0.98,
+      "attributes": [
+        "minecraft:follow_range",
+        "minecraft:knockback_resistance",
+        "minecraft:movement_speed",
+        "minecraft:air_drag_modifier"
+      ],
+      "tracks": true,
+      "summonable": true,
+      "spawn_egg": true
+    }
+  ]
+}

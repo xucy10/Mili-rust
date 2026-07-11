@@ -1,0 +1,23 @@
+[package]
+name = "valence_world"
+description = "World management and persistence for Valence"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+documentation.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bevy_app.workspace = true
+bevy_ecs.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+flate2.workspace = true
+valence_server.workspace = true
+valence_protocol.workspace = true
+valence_anvil.workspace = true
+valence_nbt.workspace = true

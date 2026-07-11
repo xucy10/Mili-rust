@@ -72,6 +72,8 @@ valence_server.workspace = true
 valence_text.workspace = true
 valence_weather = { workspace = true, optional = true }
 valence_world_border = { workspace = true, optional = true }
+valence_vanilla.workspace = true
+valence_world.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
@@ -80,6 +82,7 @@ divan.workspace = true
 flume.workspace = true
 noise.workspace = true     # For the terrain example.
 tracing.workspace = true
+valence_vanilla.workspace = true
 
 [dev-dependencies.reqwest]
 workspace = true
@@ -89,6 +92,11 @@ features = ["rustls-tls", "blocking", "stream"]
 [[bench]]
 name = "main"
 harness = false
+
+[[bin]]
+name = "mili-rust"
+path = "src/main.rs"
+doc = false
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -102,7 +110,7 @@ exclude = []
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0-alpha.1+mc.1.20.1"
+version = "0.2.0-alpha.1+mc.26.2"
 edition = "2021"
 repository = "https://github.com/valence-rs/valence"
 documentation = "https://docs.rs/valence/"
@@ -211,7 +219,9 @@ valence_scoreboard = { path = "crates/valence_scoreboard", version = "0.2.0-alph
 valence_server = { path = "crates/valence_server", version = "0.2.0-alpha.1" }
 valence_server_common = { path = "crates/valence_server_common", version = "0.2.0-alpha.1" }
 valence_text = { path = "crates/valence_text", version = "0.2.0-alpha.1" }
+valence_vanilla = { path = "crates/valence_vanilla", version = "0.2.0-alpha.1" }
 valence_weather = { path = "crates/valence_weather", version = "0.2.0-alpha.1" }
+valence_world = { path = "crates/valence_world", version = "0.2.0-alpha.1" }
 valence_world_border = { path = "crates/valence_world_border", version = "0.2.0-alpha.1" }
 vek = "0.17.1"
 zip = "2.2.0"

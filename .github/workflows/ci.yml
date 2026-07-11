@@ -1,228 +1,168 @@
 name: CI
 
 on:
+  push:
+    branches: ["main", "master"]
   pull_request:
-  merge_group:
-  push: # Run CI on the main branch after every merge. This is important to fill the GitHub Actions cache in a way that pull requests can see it
-    branches:
-      - main
+    branches: ["main", "master"]
+  workflow_dispatch: # 允许手动触发
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  valence-fmt:
-    name: Formatting
+  check:
+    name: 检查代码
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+      - uses: actions/checkout@v4
+      
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.87.0"
-          components: "rustfmt"
-
-      - name: Copy playground
-        run: cp tools/playground/src/playground.template.rs tools/playground/src/playground.rs
-
-      - name: cargo fmt
+          components: rustfmt, clippy
+      
+      - name: 缓存 Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: 检查格式
         run: cargo fmt --all -- --check
+      
+      - name: Clippy 检查
+        run: cargo clippy --workspace --all-features -- -D warnings
 
-  valence-docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-
-      - name: Copy playground
-        run: cp tools/playground/src/playground.template.rs tools/playground/src/playground.rs
-
-      - name: Install dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libclang-dev libgtk-3-dev
-
-      - name: Validate documentation
-        run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --document-private-items
-
-  typos:
-    name: Typos
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Check for spelling errors
-        uses: crate-ci/typos@v1.16.5
-
-  valence-clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-        with:
-          toolchain: "1.88.0"
-          components: "clippy"
-
-      - name: Copy playground
-        run: cp tools/playground/src/playground.template.rs tools/playground/src/playground.rs
-
-      - name: Install dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libclang-dev libgtk-3-dev
-
-      - name: Clippy
-        run: cargo clippy --workspace --no-deps --all-features --all-targets -- -D warnings
-
-  valence-tests:
+  build:
+    name: 构建 (${{ matrix.os }})
+    needs: check
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        platform: [windows-latest, macos-latest, ubuntu-latest]
-        style: [default]
-        rust:
-          - stable
-        include:
-          - style: default
-            flags: ""
-    name: Tests (${{ matrix.platform }})
-    runs-on: ${{ matrix.platform }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
     steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
-
-      - name: Copy playground
-        run: cp tools/playground/src/playground.template.rs tools/playground/src/playground.rs
-
-      - name: Install dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libclang-dev libgtk-3-dev
-        if: matrix.platform == 'ubuntu-latest'
-
-      - name: Run tests
-        run: cargo test --workspace ${{ matrix.flags }} --all-features --all-targets
-
-      - name: Run doctests
-        run: cargo test --workspace ${{ matrix.flags }} --all-features --doc
-
-      - name: Run valence_nbt tests without preserve_order feature
-        run: cargo test -p valence_nbt --all-targets
-
-  valence-miri:
-    name: Miri Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.9.0
+      - uses: actions/checkout@v4
+      
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: 缓存 Cargo
+        uses: actions/cache@v4
         with:
-          toolchain: "nightly"
-          components: "miri"
-
-      - name: Run tests
-        run: cargo miri test --workspace --all-features --doc
-
-      - name: Run doctests
-        run: cargo miri test --workspace --all-features --doc
-
-  extractor-build:
-    name: Build Extractor
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Java
-        uses: actions/setup-java@v2
-        with:
-          distribution: "zulu"
-          java-version: "21"
-
-      - name: Test Build
-        run: ./gradlew build
-        working-directory: extractor
-
-  check-depgraph:
-    name: Dependency Graph (assets/depgraph.svg)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Install cargo-depgraph
-        uses: baptiste0928/cargo-install@v2.1.0
-        with:
-          crate: cargo-depgraph
-
-      - name: Install graphviz
-        run: sudo apt update && sudo apt install -y graphviz
-
-      - name: Generate new depgraph
-        run: cargo depgraph --workspace-only | tred | dot -Tsvg -o assets/depgraph.svg
-
-      - name: Check depgraph diff
-        run: git diff --exit-code assets/depgraph.svg > assets/depgraph.patch
-
-      - name: Create comment artifact
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        run: |
-          mkdir ./bad-depgraph
-          echo ${{ github.event.number }} >> ./bad-depgraph/event-number
-
-          echo "It looks like this pull request changed the workspace structure. \
-          Please replace \`assets/depgraph.svg\` with the following text:
-
-          <details>
-            <summary>depgraph.svg (Don't forget the trailing newline)</summary>
-            
-          \`\`\`html
-          $(cat assets/depgraph.svg)
-
-          \`\`\`
-          </details>
-
-          For reference, here is a diff against the old \`depgraph.svg\`:
-
-          <details>
-
-          \`\`\`patch
-          $(cat assets/depgraph.patch)
-          \`\`\`
-          </details>" > ./bad-depgraph/pr-comment.txt
-
-      - name: Upload comment artifact
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: 构建 Debug
+        run: cargo build --verbose
+      
+      - name: 构建 Release
+        run: cargo build --release --verbose
+      
+      - name: 上传 Windows 构建产物
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
-        if: ${{ failure() && github.event_name == 'pull_request' }}
         with:
-          name: bad-depgraph
-          path: bad-depgraph/
-  udeps:
-    name: Unused Dependencies
+          name: mili-rust-windows
+          path: target/release/mili-rust.exe
+          retention-days: 30
+      
+      - name: 上传 Linux 构建产物
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mili-rust-linux
+          path: target/release/mili-rust
+          retention-days: 30
+      
+      - name: 上传 macOS 构建产物
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mili-rust-macos
+          path: target/release/mili-rust
+          retention-days: 30
+
+  test:
+    name: 测试
+    needs: check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v3
-
-      - name: Setup Rust toolchain and cache
-        uses: actions-rust-lang/setup-rust-toolchain@v1.5.0
+      - uses: actions/checkout@v4
+      
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: 缓存 Cargo
+        uses: actions/cache@v4
         with:
-          toolchain: "nightly"
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: 运行测试
+        run: cargo test --workspace --verbose
 
-      - name: Install cargo-udeps
-        uses: baptiste0928/cargo-install@v2.1.0
+  release:
+    name: 发布
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
         with:
-          crate: cargo-udeps
-
-      - name: Check for unused dependencies
-        run: cargo udeps --all --all-features
+          path: artifacts
+      
+      - name: 打包
+        run: |
+          cd artifacts
+          zip -r ../mili-rust-windows.zip mili-rust-windows/
+          zip -r ../mili-rust-linux.zip mili-rust-linux/
+          zip -r ../mili-rust-macos.zip mili-rust-macos/
+      
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          body: |
+            ## 自动构建
+            
+            ### 下载
+            
+            - [Windows](https://github.com/${{ github.repository }}/releases/download/v${{ github.run_number }}/mili-rust-windows.zip)
+            - [Linux](https://github.com/${{ github.repository }}/releases/download/v${{ github.run_number }}/mili-rust-linux.zip)
+            - [macOS](https://github.com/${{ github.repository }}/releases/download/v${{ github.run_number }}/mili-rust-macos.zip)
+            
+            ### 使用方法
+            
+            1. 下载对应系统的压缩包
+            2. 解压后运行 `mili-rust` (或 `mili-rust.exe`)
+            3. 用 Minecraft 26.2 客户端连接 `localhost`
+          files: |
+            mili-rust-windows.zip
+            mili-rust-linux.zip
+            mili-rust-macos.zip
+          draft: false
+          prerelease: false

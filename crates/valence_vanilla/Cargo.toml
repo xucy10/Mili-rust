@@ -1,0 +1,22 @@
+[package]
+name = "valence_vanilla"
+description = "Vanilla Minecraft mechanics for Valence"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+documentation.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+valence_server.workspace = true
+valence_protocol.workspace = true
+valence_generated.workspace = true
+valence_entity.workspace = true
+valence_math.workspace = true
+valence_inventory.workspace = true
+bevy_ecs.workspace = true
+bevy_app.workspace = true
+rand.workspace = true

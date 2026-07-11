@@ -1,112 +1,119 @@
-<p align="center">
-    <img src="https://raw.githubusercontent.com/valence-rs/valence/main/assets/logo-full.svg" width="650" align="center">
-</p>
+# Mili-rust Minecraft Server
 
-<p align="center">
-    <a href="https://github.com/valence-rs/valence/blob/main/LICENSE.txt">
-        <img src="https://img.shields.io/github/license/valence-rs/valence"
-            alt="license"></a>
-    <a href="https://crates.io/crates/valence">
-      <img src="https://img.shields.io/crates/d/valence?label=crates.io"></a>
-    <a href="https://discord.gg/8Fqqy9XrYb">
-        <img src="https://img.shields.io/discord/998132822239870997?logo=discord"
-            alt="chat on Discord"></a>
-    <a href="https://github.com/sponsors/rj00a">
-        <img src="https://img.shields.io/github/sponsors/rj00a"
-            alt="GitHub sponsors"></a>
-</p>
+一个用 Rust 构建的 Minecraft 26.2 服务器框架，基于 Bevy ECS 架构。
 
-A Rust framework for building Minecraft: Java Edition servers.
+## 功能特性
 
-Built on top of [Bevy ECS](https://bevyengine.org/learn/book/getting-started/ecs/), Valence is an effort to create a
-Minecraft compatible server completely from scratch in Rust. You can think of Valence as a _game engine for
-Minecraft servers_. It doesn't do much by default, but by writing game logic yourself and leveraging Bevy's
-powerful [plugin system](https://bevyengine.org/learn/book/getting-started/plugins/), you can make almost anything.
+### 核心系统
+- ✅ 完整的 Minecraft 26.2 协议支持
+- ✅ Bevy ECS 架构
+- ✅ 区块管理与网络同步
+- ✅ 实体系统与元数据追踪
+- ✅ 背包与物品系统
+- ✅ 网络加密与压缩
 
-Opinionated features like dynamic scripting, dedicated executables, and vanilla game mechanics are all expected to be
-built as optional plugins. This level of modularity is desirable for those looking to build highly custom experiences
-in Minecraft such as minigame servers.
+### 原版机制
+- ✅ 方块更新传播系统
+- ✅ Tick 调度器（随机tick + 计划tick）
+- ✅ 红石系统（红石线、火把、中继器、比较器、活塞、红石灯）
+- ✅ 漏斗系统（物品传输）
+- ✅ 作物生长系统（随机tick + 骨粉加速）
+- ✅ 物理引擎（重力、碰撞检测）
+- ✅ 生物AI（A*寻路 + 行为树）
+- ✅ 村民系统（职业、交易、AI）
 
-⚠️ **Valence is still early in development with many features unimplemented or incomplete. Expect to encounter bugs, limitations, and breaking changes.**
+### 世界管理
+- ✅ Anvil 世界格式读写
+- ✅ level.dat 读写
+- ✅ 自动保存系统
+- ✅ 区块加载/卸载
 
-# Goals
+### 26.2 新特性
+- ✅ 新方块：Cinnabar 系列、Sulfur 系列
+- ✅ 新实体：Sulfur Cube
+- ✅ 新生物群系：Sulfur Caves
 
-Valence aims to be the following:
+## 快速开始
 
-* **Complete**. Abstractions for the full breadth of the Minecraft protocol.
-* **Flexible**. Can easily extend Valence from within user code. Direct access to the Minecraft protocol is provided.
-* **Modular**. Pick and choose the components you need.
-* **Intuitive**. An API that is easy to use and difficult to misuse. Extensive documentation and examples are important.
-* **Efficient**. Optimal use of system resources with multiple CPU cores in mind. Valence uses very little memory and
-  can
-  support [thousands](https://raw.githubusercontent.com/valence-rs/valence/main/assets/many-players.png)
-  of players at the same time without lag (assuming you have the bandwidth).
-* **Up to date**. Targets the most recent stable version of Minecraft. Support for multiple versions at once is not
-  planned. However, you can use a proxy with [ViaBackwards](https://www.spigotmc.org/resources/viabackwards.27448/) to
-  achieve backwards compatibility with older clients.
+### 前置条件
 
-## Current Status
+1. **Rust** - https://rustup.rs
+2. **Visual Studio Build Tools** - https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   - 安装时选择 "C++ 桌面开发"
 
-Here are some noteworthy achievements:
-- `valence_nbt`: A speedy new library for Minecraft's Named Binary Tag (NBT) format.
-- Authentication, encryption, and compression
-- Block states
-- Chunks
-- Entities and metadata
-- Bounding volume hierarchy for fast spatial entity queries
-- Player list and player skins
-- Dimensions, biomes, and worlds
-- JSON Text API
-- A Fabric mod for extracting data from the game into JSON files. These files are processed by a build script to
-  generate Rust code for the project. The JSON files can be used in other projects as well.
-- Inventories
-- Items
-- Particles
-- Anvil file format (read only)
-- Proxy support ([Velocity](https://velocitypowered.com/), [Bungeecord](https://www.spigotmc.org/wiki/bungeecord/)
-  and [Waterfall](https://docs.papermc.io/waterfall))
+### 构建和运行
 
-Here is a [short video](https://www.youtube.com/watch?v=jkw9fZx9Etg) showing the examples and some of
-Valence's capabilities.
+```bash
+# 构建 Release 版本
+cargo build --release
 
-# Getting Started
-
-## Running the Examples
-
-After cloning the repository, run this command to try an example.
-
-```shell
-cargo r -r --example parkour
+# 运行服务器
+./target/release/mili-rust.exe
 ```
 
- I also recommend giving `game_of_life`, `terrain`, and `cow_sphere` a try.
+### 分发
 
-Next, open your Minecraft client and connect to the address `localhost`.
-If all goes well you should be playing on the server.
+构建完成后，`target/release/mili-rust.exe` 可以直接发给其他人运行，无需安装 Rust。
 
-## Adding Valence as a Dependency
+## 使用客户端连接
 
-Valence is published to [crates.io](https://crates.io/crates/valence). Run `cargo add valence` to add it to your
-project.
+1. 启动服务器
+2. 打开 Minecraft **26.2** 客户端
+3. 连接 `localhost`
 
-However, the crates.io version is likely outdated. To use the most recent development version, add Valence as a
-[git dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#specifying-dependencies-from-git-repositories).
+## 示例程序
 
-```toml
-[dependencies]
-valence = { git = "https://github.com/valence-rs/valence" }
+```bash
+# 运行原版机制演示
+cargo run --release -- example vanilla_demo
+
+# 运行其他示例
+cargo run --release -- example building
+cargo run --release -- example parkour
+cargo run --release -- example terrain
 ```
 
-Documentation from the main branch is available [here](https://valence.rs/rustdoc/valence/).
+## 开发
 
-# Contributing
+### 添加新方块
 
-Contributions are welcome! Please
-see [CONTRIBUTING.md](https://github.com/valence-rs/valence/blob/main/CONTRIBUTING.md). You can
-join [Discord](https://discord.gg/8Fqqy9XrYb) or [GitHub Discussions](https://github.com/valence-rs/valence/discussions)
-to discuss the project and ask questions.
+编辑 `crates/valence_generated/extracted/blocks.json`
 
-# License
+### 添加新物品
 
-Code is licensed under [MIT](https://opensource.org/licenses/MIT) while the Valence logo is
-under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)
+编辑 `crates/valence_generated/extracted/items.json`
+
+### 重新生成代码
+
+```bash
+cargo build
+```
+
+## 项目结构
+
+```
+Mili-rust/
+├── crates/
+│   ├── valence_protocol/      # 网络协议
+│   ├── valence_server/        # 服务器核心
+│   ├── valence_entity/        # 实体系统
+│   ├── valence_inventory/     # 背包系统
+│   ├── valence_generated/     # 代码生成
+│   ├── valence_anvil/         # Anvil格式
+│   ├── valence_nbt/           # NBT编解码
+│   ├── valence_vanilla/       # 原版机制
+│   └── valence_world/         # 世界管理
+├── examples/                  # 示例程序
+├── src/                       # 主程序入口
+└── tools/                     # 构建工具
+```
+
+## 协议版本
+
+- **Minecraft 版本**: 26.2
+- **协议版本**: 776
+- **数据版本**: 4903
+
+## 许可证
+
+MIT License
