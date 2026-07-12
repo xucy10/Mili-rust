@@ -38,7 +38,6 @@ impl Default for Perception {
     }
 }
 
-
 impl Perception {
     pub fn new() -> Self {
         Self::default()

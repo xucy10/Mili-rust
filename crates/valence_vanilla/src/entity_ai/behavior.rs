@@ -29,7 +29,6 @@ impl BehaviorTree {
     }
 }
 
-
 /// Helper to build behavior trees.
 pub struct BehaviorTreeBuilder {
     children: Vec<Arc<dyn BehaviorNode>>,
