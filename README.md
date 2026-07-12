@@ -91,7 +91,7 @@ cargo build
 
 ## 项目结构
 
-```
+```text
 Mili-rust/
 ├── crates/
 │   ├── valence_protocol/      # 网络协议
