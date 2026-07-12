@@ -1,3 +1,4 @@
+use bevy_time::TimePlugin;
 use valence::prelude::*;
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
@@ -20,6 +21,7 @@ pub fn main() {
 
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(TimePlugin)
         .add_plugins(VanillaPlugin)
         .add_plugins(WorldSavePlugin)
         .insert_resource(ServerPort(SERVER_PORT))

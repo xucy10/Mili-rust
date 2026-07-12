@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 
+use bevy_time::TimePlugin;
 use valence::prelude::*;
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
@@ -9,6 +10,7 @@ const SPAWN_Y: i32 = 64;
 pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(TimePlugin)
         .add_plugins(VanillaPlugin)
         .add_systems(Startup, setup)
         .add_systems(
