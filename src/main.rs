@@ -1,3 +1,4 @@
+mod callbacks;
 mod config;
 
 use bevy_time::TimePlugin;
@@ -6,6 +7,7 @@ use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
 use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
 
+use crate::callbacks::MiliCallbacks;
 use crate::config::ServerConfig;
 
 pub fn main() {
@@ -31,13 +33,16 @@ pub fn main() {
 
     let config = ServerConfig::load_or_create(&config_path);
 
-    let port = config.server.port;
-    let online = config.server.online_mode;
+    let port = config.port;
+    let online = config.online_mode;
 
     println!("========================================");
     println!("    Mili-rust Minecraft Server");
     println!("    端口: {port}");
     println!("    正版验证: {}", if online { "开启" } else { "关闭" });
+    if !config.motd.is_empty() {
+        println!("    MOTD: {}", config.motd[0]);
+    }
     println!("========================================");
     println!();
     println!("启动服务器...");
@@ -54,6 +59,7 @@ pub fn main() {
     let network_settings = NetworkSettings {
         address,
         connection_mode,
+        callbacks: MiliCallbacks::from(&config).into(),
         ..Default::default()
     };
 
@@ -84,9 +90,9 @@ fn setup(
     biomes: Res<BiomeRegistry>,
     config: Res<ServerConfig>,
 ) {
-    let spawn_y = config.world.spawn_y;
-    let terrain_radius = config.world.terrain_radius;
-    let chunk_radius = config.world.chunk_radius;
+    let spawn_y = config.spawn.y;
+    let terrain_radius = config.spawn.terrain_radius;
+    let chunk_radius = config.chunk_render_distance as i32;
 
     println!("生成世界...");
 
@@ -233,7 +239,7 @@ fn init_clients(
     layers: Query<Entity, (With<ChunkLayer>, With<EntityLayer>)>,
     config: Res<ServerConfig>,
 ) {
-    let spawn_y = config.world.spawn_y;
+    let spawn_y = config.spawn.y;
 
     for (
         mut layer_id,

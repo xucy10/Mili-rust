@@ -4,51 +4,59 @@ use bevy_ecs::prelude::Resource;
 use serde::{Deserialize, Serialize};
 use valence::prelude::ConnectionMode;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Resource)]
+/// The full server configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Resource)]
 #[serde(default)]
 pub(crate) struct ServerConfig {
-    pub(crate) server: ServerSection,
-    pub(crate) world: WorldSection,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub(crate) struct ServerSection {
+    pub(crate) host: String,
     pub(crate) port: u16,
-    pub(crate) max_players: usize,
+    pub(crate) motd: Vec<String>,
+    pub(crate) max_players: u32,
     pub(crate) online_mode: bool,
-    pub(crate) motd: String,
+    pub(crate) whitelist: bool,
+    pub(crate) chunk_render_distance: u32,
+    pub(crate) default_gamemode: String,
+    pub(crate) network_compression_threshold: i32,
+    pub(crate) world: String,
+    pub(crate) spawn: SpawnConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub(crate) struct WorldSection {
-    pub(crate) spawn_x: i32,
-    pub(crate) spawn_y: i32,
-    pub(crate) spawn_z: i32,
+pub(crate) struct SpawnConfig {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) z: i32,
     pub(crate) terrain_radius: i32,
-    pub(crate) chunk_radius: i32,
 }
 
-impl Default for ServerSection {
+impl Default for ServerConfig {
     fn default() -> Self {
         Self {
+            host: "0.0.0.0".into(),
             port: 25565,
+            motd: vec![
+                "Welcome to Mili-rust!".into(),
+                "A Minecraft Server in Rust".into(),
+            ],
             max_players: 20,
             online_mode: false,
-            motd: "Mili-rust Server".into(),
+            whitelist: false,
+            chunk_render_distance: 5,
+            default_gamemode: "survival".into(),
+            network_compression_threshold: 64,
+            world: "world".into(),
+            spawn: SpawnConfig::default(),
         }
     }
 }
 
-impl Default for WorldSection {
+impl Default for SpawnConfig {
     fn default() -> Self {
         Self {
-            spawn_x: 0,
-            spawn_y: 64,
-            spawn_z: 0,
+            x: 0,
+            y: 64,
+            z: 0,
             terrain_radius: 50,
-            chunk_radius: 5,
         }
     }
 }
@@ -87,7 +95,7 @@ impl ServerConfig {
     }
 
     pub(crate) fn connection_mode(&self) -> ConnectionMode {
-        if self.server.online_mode {
+        if self.online_mode {
             ConnectionMode::Online {
                 prevent_proxy_connections: false,
             }
