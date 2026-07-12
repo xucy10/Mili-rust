@@ -50,6 +50,8 @@ bevy_app.workspace = true
 bevy_ecs.workspace = true
 bevy_log = { workspace = true, optional = true }
 bevy_time.workspace = true
+serde = { workspace = true, features = ["derive"] }
+toml.workspace = true
 bytes.workspace = true
 rand.workspace = true
 uuid.workspace = true
