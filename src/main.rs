@@ -1,7 +1,6 @@
 mod config;
 
 use bevy_time::TimePlugin;
-use std::default::Default;
 use valence::prelude::*;
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
@@ -49,7 +48,7 @@ pub fn main() {
         .insert_resource(NetworkSettings {
             address,
             connection_mode,
-            ..default()
+            ..Default::default()
         })
         .add_systems(Startup, setup)
         .add_systems(
