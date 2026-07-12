@@ -54,8 +54,8 @@ impl BehaviorTreeBuilder {
     }
 
     /// Add a leaf action node.
-    pub fn action(mut self, action: Arc<dyn ActionNode>) -> Self {
-        self.children.push(action);
+    pub fn action<T: ActionNode + 'static>(mut self, action: Arc<T>) -> Self {
+        self.children.push(action as Arc<dyn BehaviorNode>);
         self
     }
 
@@ -269,9 +269,7 @@ pub struct MoveToPosition;
 impl ActionNode for MoveToPosition {
     fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
         if let Some(target_pos) = &ctx.memory.last_target_pos {
-            let current = ctx
-                .position
-                .map(|p| BlockPos::new(p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32));
+            let current = ctx.position.map(|p| BlockPos::new(p.x, p.y, p.z));
 
             if let Some(current_pos) = current {
                 if current_pos == *target_pos {
@@ -326,7 +324,7 @@ pub struct FleeFromThreat;
 impl ActionNode for FleeFromThreat {
     fn tick(&self, _entity: Entity, ctx: &mut BehaviorContext) -> BehaviorStatus {
         // Find the highest threat in memory and set a flee target opposite to it
-        let mut max_threat = 0.0f32;
+        let mut max_threat = 0.0_f32;
         let mut threat_pos = None;
 
         for (_entity, info) in &ctx.memory.known_positions {
@@ -339,11 +337,11 @@ impl ActionNode for FleeFromThreat {
         if max_threat > 0.5 {
             if let Some(threat) = threat_pos {
                 if let Some(current) = ctx.position {
-                    let flee_x = current.x + (current.x - threat.x as f64) * 5.0;
-                    let flee_z = current.z + (current.z - threat.z as f64) * 5.0;
+                    let flee_x = current.x as f64 + (current.x as f64 - threat.x as f64) * 5.0;
+                    let flee_z = current.z as f64 + (current.z as f64 - threat.z as f64) * 5.0;
                     ctx.memory.last_target_pos = Some(BlockPos::new(
                         flee_x.floor() as i32,
-                        current.y.floor() as i32,
+                        current.y,
                         flee_z.floor() as i32,
                     ));
                 }

@@ -1,6 +1,5 @@
 use bevy_ecs::prelude::*;
 use valence_entity::Position;
-use valence_math::DVec3;
 use valence_protocol::BlockPos;
 
 use super::memory::{EntityMemory, EntityRelationship};
@@ -83,7 +82,7 @@ pub fn perception_system(
             let can_hear = distance <= perception.hearing_range;
 
             if can_see || can_hear {
-                let result = DetectionResult {
+                let _result = DetectionResult {
                     entity: target_entity,
                     detected_by_sight: can_see,
                     detected_by_sound: can_hear,

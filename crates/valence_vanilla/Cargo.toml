@@ -19,4 +19,5 @@ valence_math.workspace = true
 valence_inventory.workspace = true
 bevy_ecs.workspace = true
 bevy_app.workspace = true
+bevy_time.workspace = true
 rand.workspace = true

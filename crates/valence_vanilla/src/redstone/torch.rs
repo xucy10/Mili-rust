@@ -2,7 +2,9 @@ use bevy_ecs::prelude::*;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
-use super::signal::{get_opposite_direction, offset_pos, RedstoneStrength, MAX_SIGNAL};
+use super::signal::{
+    get_opposite_direction, offset_pos, RedstoneSignal, RedstoneStrength, SignalType, MAX_SIGNAL,
+};
 
 #[derive(Component, Debug)]
 pub struct RedstoneTorch {
@@ -177,7 +179,7 @@ impl RedstoneTorch {
 
     pub fn is_valid_attachment(&self, attached_state: BlockState) -> bool {
         let attach_dir = self.get_attachment_direction();
-        let attach_pos = offset_pos(BlockPos::new(0, 0, 0), attach_dir);
+        let _attach_pos = offset_pos(BlockPos::new(0, 0, 0), attach_dir);
 
         if attach_dir == Direction::Down {
             return attached_state.is_opaque();
@@ -191,11 +193,9 @@ impl RedstoneTorch {
     }
 }
 
-fn is_wall_torch_support(state: BlockState, facing: Direction) -> bool {
-    match state.to_kind() {
-        BlockKind::Fence | BlockKind::CobblestoneWall => true,
-        _ => false,
-    }
+fn is_wall_torch_support(state: BlockState, _facing: Direction) -> bool {
+    let name = state.to_kind().to_str();
+    (name.contains("fence") && !name.contains("gate")) || name.contains("_wall")
 }
 
 pub fn is_torch(state: BlockState) -> bool {

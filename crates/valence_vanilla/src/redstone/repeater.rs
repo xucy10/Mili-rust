@@ -3,7 +3,7 @@ use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
 use super::signal::{
-    get_opposite_direction, get_power_level, offset_pos, RedstoneStrength, MAX_SIGNAL,
+    get_opposite_direction, RedstoneSignal, RedstoneStrength, SignalType, MAX_SIGNAL,
 };
 
 #[derive(Component, Debug)]
@@ -173,7 +173,7 @@ impl RedstoneRepeater {
 
         state = state.set(
             PropName::Delay,
-            PropValue::from_u16(self.delay as u16).unwrap_or(PropValue::One),
+            PropValue::from_u16(self.delay as u16).unwrap_or(PropValue::from_u16(1).unwrap()),
         );
 
         state = state.set(

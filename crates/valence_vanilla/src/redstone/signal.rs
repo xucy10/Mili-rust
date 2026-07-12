@@ -144,7 +144,7 @@ pub fn is_powered(state: BlockState) -> bool {
     }
 }
 
-pub fn get_strong_signal(state: BlockState, from: Direction) -> RedstoneStrength {
+pub fn get_strong_signal(state: BlockState, _from: Direction) -> RedstoneStrength {
     match state.to_kind() {
         BlockKind::RedstoneWire => {
             let power = get_power_level(state);
@@ -187,7 +187,7 @@ pub fn get_strong_signal(state: BlockState, from: Direction) -> RedstoneStrength
     }
 }
 
-pub fn get_weak_signal(state: BlockState, from: Direction) -> RedstoneStrength {
+pub fn get_weak_signal(state: BlockState, _from: Direction) -> RedstoneStrength {
     match state.to_kind() {
         BlockKind::RedstoneWire => get_power_level(state),
         BlockKind::RedstoneTorch => {

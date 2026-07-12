@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use valence_math::{DVec3, Vec3};
+use bevy_time::prelude::*;
+use valence_math::DVec3;
 use valence_protocol::{BlockPos, ItemStack};
 use valence_server::entity::Position;
 
@@ -256,7 +257,7 @@ impl TradeOffer {
 /// Resource holding all trade tables keyed by profession.
 #[derive(Resource)]
 pub struct TradeTable {
-    trades: HashMap<VillagerProfession, Vec<Vec<Vec<TradeOffer>>>>,
+    trades: HashMap<VillagerProfession, Vec<Vec<TradeOffer>>>,
 }
 
 impl Default for TradeTable {
@@ -389,10 +390,10 @@ pub fn villager_ai_system(
                 if ai.activity_timer > Duration::from_secs(10) {
                     ai.target_pos = ai.home_pos.map(|home| {
                         let bp: DVec3 = DVec3::new(home.x as f64, home.y as f64, home.z as f64);
-                        let offset = Vec3::new(
-                            ((entity.id() as f32 * 7.0).sin() * 4.0) as f64,
+                        let offset = DVec3::new(
+                            ((entity.index() as f32 * 7.0).sin() * 4.0) as f64,
                             0.0,
-                            ((entity.id() as f32 * 11.0).cos() * 4.0) as f64,
+                            ((entity.index() as f32 * 11.0).cos() * 4.0) as f64,
                         );
                         bp + offset
                     });
@@ -484,7 +485,7 @@ pub fn workstation_binding_system(
         let mut best_distance = f64::MAX;
         let mut best_workstation = None;
 
-        for (ws_entity, mut workstation, ws_pos) in &mut workstation_query {
+        for (ws_entity, workstation, ws_pos) in &mut workstation_query {
             if workstation.profession != ai.profession {
                 continue;
             }
@@ -526,7 +527,7 @@ pub fn bed_binding_system(
         let mut best_distance = f64::MAX;
         let mut best_bed = None;
 
-        for (bed_entity, mut bed, bed_pos) in &mut bed_query {
+        for (bed_entity, bed, bed_pos) in &mut bed_query {
             if bed.bound_villager.is_some() {
                 continue;
             }
@@ -560,7 +561,7 @@ pub fn villager_movement_system(mut query: Query<(&mut Position, &VillagerAi)>) 
             let distance = dir.length();
 
             if distance > 0.5 {
-                let speed = 0.287;
+                let speed: f64 = 0.287;
                 let movement = dir.normalize() * speed.min(distance);
                 pos.0 += movement;
             }

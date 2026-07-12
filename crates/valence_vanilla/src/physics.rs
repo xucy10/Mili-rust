@@ -1,9 +1,10 @@
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
+use bevy_time::prelude::*;
 use valence_entity::hitbox::HitboxShape;
 use valence_entity::{Position, Velocity};
 use valence_math::{Aabb, DVec3};
-use valence_protocol::{BlockPos, BlockState};
+use valence_protocol::BlockPos;
 use valence_server::layer::chunk::ChunkLayer;
 
 /// Component for a physics body.
@@ -136,7 +137,7 @@ fn integrate_motion(
         position.0 += body.velocity * dt;
 
         // Update the Velocity component to match
-        velocity.0 = body.velocity;
+        velocity.0 = body.velocity.as_vec3();
 
         // Reset acceleration for next frame
         body.acceleration = DVec3::ZERO;
@@ -153,19 +154,19 @@ fn solve_collisions(
             continue;
         }
 
-        let aabb = hitbox.0.translated(position.0);
+        let aabb = hitbox.0 + position.0;
 
         // Check collision with blocks in the chunk layer
         if let Ok(chunk_layer) = chunk_layers.get_single() {
             let min_block = BlockPos::new(
-                aabb.min.x.floor() as i32,
-                aabb.min.y.floor() as i32,
-                aabb.min.z.floor() as i32,
+                aabb.min().x.floor() as i32,
+                aabb.min().y.floor() as i32,
+                aabb.min().z.floor() as i32,
             );
             let max_block = BlockPos::new(
-                aabb.max.x.floor() as i32,
-                aabb.max.y.floor() as i32,
-                aabb.max.z.floor() as i32,
+                aabb.max().x.floor() as i32,
+                aabb.max().y.floor() as i32,
+                aabb.max().z.floor() as i32,
             );
 
             let mut on_ground = false;
@@ -175,15 +176,16 @@ fn solve_collisions(
                     for z in min_block.z..=max_block.z {
                         let block_pos = BlockPos::new(x, y, z);
                         if let Some(block_ref) = chunk_layer.block(block_pos) {
-                            if block_ref.state.is_solid() {
-                                let block_aabb = Aabb {
-                                    min: DVec3::new(x as f64, y as f64, z as f64),
-                                    max: DVec3::new(x as f64 + 1.0, y as f64 + 1.0, z as f64 + 1.0),
-                                };
+                            if block_ref.state.blocks_motion() {
+                                let block_aabb = Aabb::new(
+                                    DVec3::new(x as f64, y as f64, z as f64),
+                                    DVec3::new(x as f64 + 1.0, y as f64 + 1.0, z as f64 + 1.0),
+                                );
 
-                                if let Some(collision) = aabb.intersect(block_aabb) {
-                                    // Simple resolution: push out of collision
-                                    let penetration = collision.max - collision.min;
+                                if aabb.intersects(block_aabb) {
+                                    let collision_min = aabb.min().max(block_aabb.min());
+                                    let collision_max = aabb.max().min(block_aabb.max());
+                                    let penetration = collision_max - collision_min;
                                     let mut min_penetration = f64::MAX;
                                     let mut axis = DVec3::ZERO;
 
@@ -201,8 +203,8 @@ fn solve_collisions(
                                     }
 
                                     // Determine direction based on center positions
-                                    let body_center = aabb.center();
-                                    let block_center = block_aabb.center();
+                                    let body_center = (aabb.min() + aabb.max()) * 0.5;
+                                    let block_center = (block_aabb.min() + block_aabb.max()) * 0.5;
                                     let direction = body_center - block_center;
 
                                     // Push in the direction of least penetration

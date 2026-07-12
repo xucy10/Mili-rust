@@ -484,7 +484,7 @@ fn calc_signal_for_input(
 }
 
 fn calc_strong_signal(
-    chunk_layer: &ChunkLayer,
+    _chunk_layer: &ChunkLayer,
     state: BlockState,
     _pos: BlockPos,
     _from_dir: Direction,

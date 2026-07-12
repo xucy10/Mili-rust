@@ -156,12 +156,13 @@ fn crop_growth_system(mut crops: Query<&mut Crop>, mut chunk_layers: Query<&mut 
         }
 
         let pos = crop.pos;
-        let light_level = get_light_level(pos, &chunk_layers);
-        let has_water = check_nearby_water(pos, &chunk_layers);
+        if let Ok(chunk_layer) = chunk_layers.get_single_mut() {
+            let light_level = get_light_level(pos, &*chunk_layer);
+            let has_water = check_nearby_water(pos, &*chunk_layer);
 
-        if check_growth_conditions(crop.crop_type, light_level, has_water) {
-            crop.grow();
-            set_crop_block_state(&crop, pos, &mut chunk_layers);
+            if check_growth_conditions(crop.crop_type, light_level, has_water) {
+                crop.grow();
+            }
         }
     }
 }
@@ -177,7 +178,10 @@ fn bone_meal_growth_system(mut crops: Query<&mut Crop>, mut chunk_layers: Query<
         crop.grow();
         crop.grow();
         if crop.age != old_age {
-            set_crop_block_state(&crop, crop.pos, &mut chunk_layers);
+            let new_state = crop.to_block_state();
+            if let Ok(mut chunk_layer) = chunk_layers.get_single_mut() {
+                chunk_layer.set_block(crop.pos, new_state);
+            }
         }
     }
 }
@@ -201,25 +205,18 @@ pub fn check_growth_conditions(crop_type: CropType, light_level: i32, has_water:
 }
 
 /// Get the light level at a given position.
-fn get_light_level(pos: BlockPos, chunk_layers: &Query<&ChunkLayer>) -> i32 {
-    if let Ok(chunk_layer) = chunk_layers.get_single() {
-        let above_pos = BlockPos::new(pos.x, pos.y + 1, pos.z);
-        if let Some(above_ref) = chunk_layer.block(above_pos) {
-            if above_ref.state.to_kind() == BlockKind::Air {
-                return 15;
-            }
+fn get_light_level(pos: BlockPos, chunk_layer: &ChunkLayer) -> i32 {
+    let above_pos = BlockPos::new(pos.x, pos.y + 1, pos.z);
+    if let Some(above_ref) = chunk_layer.block(above_pos) {
+        if above_ref.state.to_kind() == BlockKind::Air {
+            return 15;
         }
-        return 10;
     }
-    12
+    10
 }
 
 /// Check if there's water nearby (within 4 blocks horizontally, same or +1 Y).
-fn check_nearby_water(pos: BlockPos, chunk_layers: &Query<&ChunkLayer>) -> bool {
-    let Ok(chunk_layer) = chunk_layers.get_single() else {
-        return true;
-    };
-
+fn check_nearby_water(pos: BlockPos, chunk_layer: &ChunkLayer) -> bool {
     for dx in -4..=4 {
         for dz in -4..=4 {
             let check_pos = BlockPos::new(pos.x + dx, pos.y, pos.z + dz);
@@ -237,15 +234,6 @@ fn check_nearby_water(pos: BlockPos, chunk_layers: &Query<&ChunkLayer>) -> bool 
         }
     }
     false
-}
-
-/// Set the crop block state in the world based on current age.
-fn set_crop_block_state(crop: &Crop, pos: BlockPos, chunk_layers: &mut Query<&mut ChunkLayer>) {
-    let Ok(mut chunk_layer) = chunk_layers.get_single_mut() else {
-        return;
-    };
-    let new_state = crop.to_block_state();
-    chunk_layer.set_block(pos, new_state);
 }
 
 /// Get the item produced when a crop is harvested.

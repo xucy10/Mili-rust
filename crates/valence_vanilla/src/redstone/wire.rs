@@ -3,8 +3,8 @@ use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
 use super::signal::{
-    get_horizontal_directions, get_opposite_direction, get_power_level, is_redstone_conductor,
-    offset_pos, RedstoneStrength, MAX_SIGNAL,
+    get_horizontal_directions, get_power_level, is_redstone_conductor, offset_pos, RedstoneSignal,
+    RedstoneStrength, SignalType, MAX_SIGNAL,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -118,7 +118,7 @@ impl RedstoneWire {
     pub fn calculate_connections(
         &self,
         pos: BlockPos,
-        get_block: impl Fn(BlockPos) -> BlockState,
+        get_block: &impl Fn(BlockPos) -> BlockState,
     ) -> [WireConnection; 4] {
         let mut connections = [WireConnection::None; 4];
 
@@ -137,7 +137,7 @@ impl RedstoneWire {
         &self,
         dir: Direction,
         neighbor_state: BlockState,
-        get_block: impl Fn(BlockPos) -> BlockState,
+        get_block: &impl Fn(BlockPos) -> BlockState,
     ) -> WireConnection {
         if is_wire(neighbor_state) {
             return WireConnection::Side;

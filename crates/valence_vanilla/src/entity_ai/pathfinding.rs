@@ -235,7 +235,7 @@ fn get_walkable_neighbors(ctx: &PathfindingContext, pos: BlockPos) -> Vec<(Block
 fn is_walkable(ctx: &PathfindingContext, pos: BlockPos) -> bool {
     // Check if the block at this position is solid
     if let Some(block_ref) = ctx.chunk_layer.block(pos) {
-        if block_ref.state.is_solid() {
+        if block_ref.state.blocks_motion() {
             return false;
         }
     }
@@ -243,7 +243,7 @@ fn is_walkable(ctx: &PathfindingContext, pos: BlockPos) -> bool {
     // Check if there's ground below
     let below = BlockPos::new(pos.x, pos.y - 1, pos.z);
     if let Some(block_ref) = ctx.chunk_layer.block(below) {
-        if !block_ref.state.is_solid() && !ctx.allow_swim {
+        if !block_ref.state.blocks_motion() && !ctx.allow_swim {
             return false;
         }
     }

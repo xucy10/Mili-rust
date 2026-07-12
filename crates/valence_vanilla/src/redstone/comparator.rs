@@ -2,9 +2,7 @@ use bevy_ecs::prelude::*;
 use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
-use super::signal::{
-    get_opposite_direction, offset_pos, RedstoneSignal, RedstoneStrength, MAX_SIGNAL,
-};
+use super::signal::{get_opposite_direction, RedstoneSignal, RedstoneStrength, SignalType};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ComparatorMode {
