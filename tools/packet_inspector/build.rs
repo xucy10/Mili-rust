@@ -181,11 +181,9 @@ fn write_transformer(packets: &[Packet]) -> anyhow::Result<()> {
             });
         }
 
-        if side == "Clientbound" {
-            side_arms.extend(quote! {
-                _ => Ok(NOT_AVAILABLE.to_owned()),
-            });
-        }
+        side_arms.extend(quote! {
+            _ => Ok(NOT_AVAILABLE.to_owned()),
+        });
 
         let side = syn::parse_str::<syn::Ident>(side).unwrap();
 
