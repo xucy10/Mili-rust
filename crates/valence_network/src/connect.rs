@@ -448,10 +448,7 @@ async fn handle_login(
         username: (&info.username[..]).into(),
         properties: Default::default(),
     };
-    {
-        use valence_protocol::Packet as _;
-        debug_pkt.encode_with_id(&mut debug_buf).ok();
-    }
+    <LoginSuccessS2c as valence_protocol::Packet>::encode_with_id(&debug_pkt, &mut debug_buf).ok();
     error!(
         "LoginSuccessS2c raw bytes (id={} len={}): {:02x?}",
         <LoginSuccessS2c as valence_protocol::Packet>::ID,
