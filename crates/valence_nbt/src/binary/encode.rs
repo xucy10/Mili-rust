@@ -31,6 +31,23 @@ where
     Ok(())
 }
 
+/// Encodes NBT in "Network NBT" format (since 1.20.2 / protocol 764).
+///
+/// Network NBT omits the root compound's name, writing only the tag type
+/// byte followed directly by the compound payload.
+pub fn to_binary_network<W, S>(comp: &Compound<S>, writer: W) -> Result<()>
+where
+    W: Write,
+    S: ToModifiedUtf8 + Hash + Ord,
+{
+    let mut state = EncodeState { writer };
+
+    state.write_tag(Tag::Compound)?;
+    state.write_compound(comp)?;
+
+    Ok(())
+}
+
 /// Returns the number of bytes that will be written when
 /// [`to_binary`] is called with this compound and root name.
 ///

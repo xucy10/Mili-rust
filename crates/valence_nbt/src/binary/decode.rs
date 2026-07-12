@@ -34,6 +34,32 @@ where
     Ok((root, root_name))
 }
 
+/// Decodes NBT in "Network NBT" format (since 1.20.2 / protocol 764).
+///
+/// Network NBT omits the root compound's name. Only the tag type byte
+/// is expected, followed directly by the compound payload.
+pub fn from_binary_network<'de, S>(slice: &mut &'de [u8]) -> Result<Compound<S>>
+where
+    S: FromModifiedUtf8<'de> + Hash + Ord,
+{
+    let mut state = DecodeState { slice, depth: 0 };
+
+    let root_tag = state.read_tag()?;
+
+    if root_tag != Tag::Compound {
+        return Err(Error::new_owned(format!(
+            "expected root tag for compound (got {})",
+            root_tag.name(),
+        )));
+    }
+
+    let root = state.read_compound()?;
+
+    debug_assert_eq!(state.depth, 0);
+
+    Ok(root)
+}
+
 /// Maximum recursion depth to prevent overflowing the call stack.
 const MAX_DEPTH: usize = 512;
 

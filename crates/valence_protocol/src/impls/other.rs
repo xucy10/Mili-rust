@@ -45,21 +45,19 @@ impl<'a> Decode<'a> for Uuid {
 
 impl Encode for Compound {
     fn encode(&self, w: impl Write) -> anyhow::Result<()> {
-        Ok(valence_nbt::to_binary(self, w, "")?)
+        Ok(valence_nbt::to_binary_network(self, w)?)
     }
 }
 
 impl Decode<'_> for Compound {
     fn decode(r: &mut &[u8]) -> anyhow::Result<Self> {
-        // Check for null compound.
+        // Check for null compound (TAG_End).
         if r.first() == Some(&0) {
             *r = &r[1..];
             return Ok(Compound::new());
         }
 
-        // TODO: consider if we need to bound the input slice or add some other
-        // mitigation to prevent excessive memory usage on hostile input.
-        Ok(valence_nbt::from_binary(r)?.0)
+        Ok(valence_nbt::from_binary_network(r)?)
     }
 }
 
