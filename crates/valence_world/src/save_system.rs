@@ -27,6 +27,8 @@ pub struct WorldSaveManager {
     pub auto_save_interval_secs: u64,
     /// Whether a save is currently in progress.
     saving_in_progress: bool,
+    /// Whether shutdown save has been performed.
+    shutdown_saved: bool,
 }
 
 impl WorldSaveManager {
@@ -40,6 +42,7 @@ impl WorldSaveManager {
             auto_save_enabled: true,
             auto_save_interval_secs: 300,
             saving_in_progress: false,
+            shutdown_saved: false,
         }
     }
 
@@ -177,21 +180,21 @@ pub fn shutdown_save_system(
     mut save_manager: ResMut<WorldSaveManager>,
     layers: Query<&ChunkLayer>,
 ) {
-    if save_manager.dirty_count() == 0 && save_manager.level_dat.is_some() {
+    if save_manager.shutdown_saved {
         return;
     }
 
     info!("Saving world on shutdown...");
 
-    if let Err(e) = save_manager.save_level_dat() {
-        error!("Failed to save level.dat on shutdown: {}", e);
-    }
+    let _ = save_manager.save_level_dat();
 
     if let Err(e) = perform_save(&mut save_manager, &layers) {
         error!("Shutdown save failed: {}", e);
     } else {
         info!("World saved successfully on shutdown.");
     }
+
+    save_manager.shutdown_saved = true;
 }
 
 /// Performs the actual save operation.

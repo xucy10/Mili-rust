@@ -9,6 +9,16 @@ use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
 use crate::config::ServerConfig;
 
 pub fn main() {
+    // Windows 控制台 UTF-8 编码支持
+    #[cfg(windows)]
+    unsafe {
+        extern "system" {
+            fn SetConsoleOutputCP(codepage: u32) -> i32;
+            fn SetConsoleCP(codepage: u32) -> i32;
+        }
+        SetConsoleOutputCP(65001);
+        SetConsoleCP(65001);
+    }
     let config = ServerConfig::load_or_create("config.toml");
 
     let port = config.server.port;
