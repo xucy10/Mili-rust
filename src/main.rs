@@ -48,17 +48,22 @@ pub fn main() {
     let connection_mode = config.connection_mode();
     let address = format!("0.0.0.0:{port}").parse().unwrap();
 
+    // NetworkSettings 必须在 DefaultPlugins 之前插入，
+    // 因为 NetworkPlugin 用 get_resource_or_insert_with 读取，
+    // 如果 DefaultPlugins 先构建会覆盖我们的设置
+    let network_settings = NetworkSettings {
+        address,
+        connection_mode,
+        ..Default::default()
+    };
+
     App::new()
+        .insert_resource(network_settings)
         .add_plugins(DefaultPlugins)
         .add_plugins(TimePlugin)
         .add_plugins(VanillaPlugin)
         .add_plugins(WorldSavePlugin)
         .insert_resource(config)
-        .insert_resource(NetworkSettings {
-            address,
-            connection_mode,
-            ..Default::default()
-        })
         .add_systems(Startup, setup)
         .add_systems(
             Update,
