@@ -142,7 +142,6 @@ async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
                     "skipped plugin message in configuration phase (channel: {:?})",
                     msg.channel
                 );
-                continue;
             }
             other => {
                 bail!("unexpected packet ID {other} in configuration phase, expected 0 (Client Information) or 2 (Plugin Message)");
