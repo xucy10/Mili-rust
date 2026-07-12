@@ -441,24 +441,23 @@ async fn handle_login(
     })
     .await?;
 
+    // Debug: encode LoginSuccessS2c to bytes and log for protocol analysis
+    let mut debug_buf = Vec::new();
+    let debug_pkt = LoginSuccessS2c {
+        uuid: info.uuid,
+        username: (&info.username[..]).into(),
+        properties: Default::default(),
+    };
     {
-        // Debug: encode LoginSuccessS2c to bytes and log for protocol analysis
-        let mut buf = Vec::new();
-        let pkt = LoginSuccessS2c {
-            uuid: info.uuid,
-            username: (&info.username[..]).into(),
-            properties: Default::default(),
-        };
-        use valence_protocol::Encode as _;
         use valence_protocol::Packet as _;
-        pkt.encode_with_id(&mut buf).ok();
-        error!(
-            "LoginSuccessS2c raw bytes (id={} len={}): {:02x?}",
-            LoginSuccessS2c::ID,
-            buf.len(),
-            &buf[..],
-        );
+        debug_pkt.encode_with_id(&mut debug_buf).ok();
     }
+    error!(
+        "LoginSuccessS2c raw bytes (id={} len={}): {:02x?}",
+        <LoginSuccessS2c as valence_protocol::Packet>::ID,
+        debug_buf.len(),
+        &debug_buf[..],
+    );
 
     // Wait for LoginAcknowledged (required by modern MC clients)
     let _login_ack: LoginAcknowledgedC2s = io.recv_packet().await?;
