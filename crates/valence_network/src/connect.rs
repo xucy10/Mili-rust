@@ -27,23 +27,23 @@ use valence_nbt::{Compound, List, Value as NbtValue};
 use valence_protocol::profile::Property;
 use valence_protocol::Decode;
 use valence_server::client::Properties;
+use valence_server::protocol::encode::Encode;
+use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
+use valence_server::protocol::packets::configuration::config_select_known_packs_s2c::KnownPack;
 use valence_server::protocol::packets::configuration::{
     ConfigClientInformationC2s, ConfigCustomPayloadS2c, ConfigFinishConfigurationC2s,
     ConfigFinishConfigurationS2c, ConfigRegistryDataS2c, ConfigSelectKnownPacksC2s,
     ConfigSelectKnownPacksS2c, ConfigUpdateTagsS2c,
 };
-use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
-use valence_server::protocol::packets::configuration::config_select_known_packs_s2c::KnownPack;
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
 use valence_server::protocol::packets::login::{
-    LoginCompressionS2c, LoginDisconnectS2c, LoginHelloC2s, LoginHelloS2c, LoginKeyC2s,
-    LoginQueryRequestS2c, LoginQueryResponseC2s, LoginSuccessS2c, LoginAcknowledgedC2s,
+    LoginAcknowledgedC2s, LoginCompressionS2c, LoginDisconnectS2c, LoginHelloC2s, LoginHelloS2c,
+    LoginKeyC2s, LoginQueryRequestS2c, LoginQueryResponseC2s, LoginSuccessS2c,
 };
 use valence_server::protocol::packets::status::{
     QueryPingC2s, QueryPongS2c, QueryRequestC2s, QueryResponseS2c,
 };
-use valence_server::protocol::encode::Encode;
 use valence_server::protocol::{PacketDecoder, PacketEncoder, RawBytes, VarInt};
 use valence_server::text::{Color, IntoText};
 use valence_server::{ident, Text, MINECRAFT_VERSION, PROTOCOL_VERSION};
