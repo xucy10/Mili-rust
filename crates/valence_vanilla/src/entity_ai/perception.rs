@@ -1,6 +1,6 @@
 use bevy_ecs::prelude::*;
-use valence_math::DVec3;
 use valence_entity::Position;
+use valence_math::DVec3;
 use valence_protocol::BlockPos;
 
 use super::memory::{EntityMemory, EntityRelationship};
@@ -37,6 +37,7 @@ impl Default for Perception {
         }
     }
 }
+
 
 impl Perception {
     pub fn new() -> Self {

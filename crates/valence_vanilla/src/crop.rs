@@ -142,10 +142,7 @@ impl Plugin for CropPlugin {
 }
 
 /// System that handles random crop growth ticks.
-fn crop_growth_system(
-    mut crops: Query<&mut Crop>,
-    mut chunk_layers: Query<&mut ChunkLayer>,
-) {
+fn crop_growth_system(mut crops: Query<&mut Crop>, mut chunk_layers: Query<&mut ChunkLayer>) {
     let mut rng = rand::thread_rng();
 
     for mut crop in &mut crops {
@@ -170,10 +167,7 @@ fn crop_growth_system(
 }
 
 /// System that handles bone-mealed crop growth (applied instantly).
-fn bone_meal_growth_system(
-    mut crops: Query<&mut Crop>,
-    mut chunk_layers: Query<&mut ChunkLayer>,
-) {
+fn bone_meal_growth_system(mut crops: Query<&mut Crop>, mut chunk_layers: Query<&mut ChunkLayer>) {
     for mut crop in &mut crops {
         if crop.is_fully_grown() {
             continue;

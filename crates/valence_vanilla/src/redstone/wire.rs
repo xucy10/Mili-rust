@@ -3,8 +3,8 @@ use valence_generated::block::{BlockKind, BlockState, PropName, PropValue};
 use valence_protocol::{BlockPos, Direction};
 
 use super::signal::{
-    get_horizontal_directions, get_opposite_direction, get_power_level,
-    is_redstone_conductor, offset_pos, RedstoneStrength, MAX_SIGNAL,
+    get_horizontal_directions, get_opposite_direction, get_power_level, is_redstone_conductor,
+    offset_pos, RedstoneStrength, MAX_SIGNAL,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

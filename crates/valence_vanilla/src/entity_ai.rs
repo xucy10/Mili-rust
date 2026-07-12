@@ -101,9 +101,7 @@ impl Plugin for EntityAiPlugin {
     }
 }
 
-fn behavior_system(
-    mut query: Query<(Entity, &Position, &mut EntityMemory, &BehaviorTree)>,
-) {
+fn behavior_system(mut query: Query<(Entity, &Position, &mut EntityMemory, &BehaviorTree)>) {
     for (entity, position, mut memory, tree) in &mut query {
         let mut ctx = BehaviorContext {
             entity,
