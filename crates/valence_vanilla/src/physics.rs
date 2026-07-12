@@ -96,7 +96,7 @@ fn apply_gravity(mut query: Query<(&mut PhysicsBody, &Velocity)>, _time: Res<Tim
     for (mut body, _velocity) in &mut query {
         if body.gravity_multiplier > 0.0 {
             let gm = body.gravity_multiplier;
-            body.acceleration += gravity * gm;
+            body.acceleration += gravity * gm as f64;
         }
     }
 }
