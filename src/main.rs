@@ -1,8 +1,5 @@
 use valence::prelude::*;
-use valence_vanilla::block_update::{set_block_with_update, BlockUpdateEvent, NeighborUpdateEvent};
-use valence_vanilla::crop::{Crop, CropType};
-use valence_vanilla::hopper::Hopper;
-use valence_vanilla::tick_schedule::TickScheduler;
+use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
 use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
 
@@ -22,15 +19,7 @@ pub fn main() {
     println!();
 
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Mili-rust Server".into(),
-                resolution: (800.0, 600.0).into(),
-                visible: false, // 无头模式，不显示窗口
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(DefaultPlugins)
         .add_plugins(VanillaPlugin)
         .add_plugins(WorldSavePlugin)
         .insert_resource(ServerPort(SERVER_PORT))
@@ -42,7 +31,6 @@ pub fn main() {
                 despawn_disconnected_clients,
                 handle_block_updates,
                 handle_neighbor_updates,
-                auto_save_system,
             ),
         )
         .run();
@@ -211,22 +199,34 @@ fn create_hopper_demo(layer: &mut LayerBundle) {
 }
 
 fn init_clients(
-    mut clients: Query<(&mut Client, &mut Inventory), Added<Client>>,
-    dimensions: Res<DimensionTypeRegistry>,
-    biomes: Res<BiomeRegistry>,
-    server: Res<Server>,
-    mut layers: Query<Entity, With<ChunkLayer>>,
+    mut clients: Query<
+        (
+            &mut Client,
+            &mut EntityLayerId,
+            &mut VisibleChunkLayer,
+            &mut VisibleEntityLayers,
+            &mut Position,
+            &mut Inventory,
+        ),
+        Added<Client>,
+    >,
+    layers: Query<Entity, (With<ChunkLayer>, With<EntityLayer>)>,
 ) {
-    for (mut client, mut inventory) in &mut clients {
-        let layer_entity = layers.single_mut();
-        client.set_player_list(&(server).player_list);
-        client.teleport(
-            IVec3::new(0, SPAWN_Y + 2, 0),
-            layers.single(),
-            &dimensions,
-            &biomes,
-            &server,
-        );
+    for (
+        mut client,
+        mut layer_id,
+        mut visible_chunk_layer,
+        mut visible_entity_layers,
+        mut pos,
+        mut inventory,
+    ) in &mut clients
+    {
+        let layer = layers.single();
+
+        layer_id.0 = layer;
+        visible_chunk_layer.0 = layer;
+        visible_entity_layers.0.insert(layer);
+        pos.set([0.0, f64::from(SPAWN_Y + 2), 0.0]);
 
         // 给玩家一些初始物品
         inventory.set_slot(36, ItemStack::new(ItemKind::DiamondPickaxe, 1, None));
@@ -256,8 +256,4 @@ fn handle_neighbor_updates(mut events: EventReader<NeighborUpdateEvent>) {
     for _event in events.read() {
         // 邻居更新日志太多，这里不打印
     }
-}
-
-fn auto_save_system(mut save_manager: ResMut<WorldSaveManager>, time: Res<Time>) {
-    save_manager.update(time.delta());
 }
