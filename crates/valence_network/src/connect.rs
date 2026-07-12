@@ -30,9 +30,10 @@ use valence_protocol::Ident;
 use valence_server::client::Properties;
 use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
 use valence_server::protocol::packets::configuration::{
-    ConfigClientInformationC2s, ConfigCustomPayloadS2c, ConfigFinishConfigurationC2s,
-    ConfigFinishConfigurationS2c, ConfigRegistryDataS2c, ConfigSelectKnownPacksC2s,
-    ConfigSelectKnownPacksS2c, ConfigUpdateEnabledFeaturesS2c, ConfigUpdateTagsS2c,
+    ConfigClientInformationC2s, ConfigCustomPayloadC2s, ConfigCustomPayloadS2c,
+    ConfigFinishConfigurationC2s, ConfigFinishConfigurationS2c, ConfigRegistryDataS2c,
+    ConfigSelectKnownPacksC2s, ConfigSelectKnownPacksS2c, ConfigUpdateEnabledFeaturesS2c,
+    ConfigUpdateTagsS2c,
 };
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
@@ -123,8 +124,31 @@ async fn send_registry_data(io: &mut PacketIo) -> anyhow::Result<()> {
 
 async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
     // 1. Receive client information
-    let _client_info: ConfigClientInformationC2s = io.recv_packet().await?;
-    trace!("received client information in configuration phase");
+    //    The client may send Plugin Messages (e.g. minecraft:brand) before Client Information.
+    //    Peek at the packet ID and handle accordingly.
+    loop {
+        let packet_id = io.recv_packet_id().await?;
+        match packet_id {
+            0 => {
+                // Client Information (Configuration ID 0)
+                let _client_info: ConfigClientInformationC2s = io.decode_frame()?;
+                trace!("received client information in configuration phase");
+                break;
+            }
+            2 => {
+                // Plugin Message / custom_payload (Configuration ID 2)
+                let msg: ConfigCustomPayloadC2s = io.decode_frame()?;
+                trace!(
+                    "skipped plugin message in configuration phase (channel: {:?})",
+                    msg.channel
+                );
+                continue;
+            }
+            other => {
+                bail!("unexpected packet ID {other} in configuration phase, expected 0 (Client Information) or 2 (Plugin Message)");
+            }
+        }
+    }
 
     // 2. Send known packs (empty - server doesn't know any packs)
     io.send_packet(&ConfigSelectKnownPacksS2c {

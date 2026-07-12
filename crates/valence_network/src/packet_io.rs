@@ -74,6 +74,34 @@ impl PacketIo {
         }
     }
 
+    /// Read the next packet frame and return its ID without decoding.
+    /// The frame body is stored internally and can be decoded later with `decode_frame`.
+    pub(crate) async fn recv_packet_id(&mut self) -> anyhow::Result<i32> {
+        loop {
+            if let Some(frame) = self.dec.try_next_packet()? {
+                self.frame = frame;
+                return Ok(self.frame.id);
+            }
+
+            self.dec.reserve(READ_BUF_SIZE);
+            let mut buf = self.dec.take_capacity();
+
+            if self.stream.read_buf(&mut buf).await? == 0 {
+                return Err(io::Error::from(ErrorKind::UnexpectedEof).into());
+            }
+
+            self.dec.queue_bytes(buf);
+        }
+    }
+
+    /// Decode the last frame received by `recv_packet_id` as the given packet type.
+    pub(crate) fn decode_frame<'a, P>(&'a self) -> anyhow::Result<P>
+    where
+        P: Packet + Decode<'a>,
+    {
+        self.frame.decode()
+    }
+
     #[allow(dead_code)]
     pub(crate) fn set_compression(&mut self, threshold: CompressionThreshold) {
         self.enc.set_compression(threshold);

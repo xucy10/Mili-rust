@@ -47,6 +47,8 @@ pub mod configuration {
     pub use config_update_tags_s2c::ConfigUpdateTagsS2c;
     pub mod config_custom_payload_s2c;
     pub use config_custom_payload_s2c::ConfigCustomPayloadS2c;
+    pub mod config_custom_payload_c2s;
+    pub use config_custom_payload_c2s::ConfigCustomPayloadC2s;
     pub mod config_update_enabled_features_s2c;
     pub use config_update_enabled_features_s2c::ConfigUpdateEnabledFeaturesS2c;
 }
