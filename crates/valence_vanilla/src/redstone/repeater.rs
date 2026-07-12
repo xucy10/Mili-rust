@@ -243,7 +243,7 @@ pub fn is_repeater(state: BlockState) -> bool {
     state.to_kind() == BlockKind::Repeater
 }
 
-pub fn get_repeater_signal(pos: BlockPos, state: BlockState) -> RedstoneSignal {
+pub fn get_repeater_signal(_pos: BlockPos, state: BlockState) -> RedstoneSignal {
     if !is_repeater(state) {
         return RedstoneSignal::none();
     }

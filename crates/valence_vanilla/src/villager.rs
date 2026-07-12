@@ -356,7 +356,7 @@ impl TimeOfDay {
 
 /// System that advances the time of day.
 pub fn advance_time_system(mut time: ResMut<TimeOfDay>, time_res: Res<Time>) {
-    time.time += (time_res.delta_secs_f64() * 20.0) as i64;
+    time.time += (time_res.delta_seconds_f64() * 20.0) as i64;
     time.time %= 24000;
 }
 

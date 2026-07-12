@@ -187,7 +187,7 @@ pub fn is_wire(state: BlockState) -> bool {
     state.to_kind() == BlockKind::RedstoneWire
 }
 
-pub fn get_wire_signal(pos: BlockPos, state: BlockState) -> RedstoneSignal {
+pub fn get_wire_signal(_pos: BlockPos, state: BlockState) -> RedstoneSignal {
     if !is_wire(state) {
         return RedstoneSignal::none();
     }

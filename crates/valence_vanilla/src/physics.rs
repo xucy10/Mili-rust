@@ -90,13 +90,13 @@ impl Plugin for PhysicsPlugin {
 }
 
 /// Apply gravity to all physics bodies.
-fn apply_gravity(mut query: Query<(&mut PhysicsBody, &Velocity)>, time: Res<Time>) {
-    let dt = time.delta_seconds() as f64;
+fn apply_gravity(mut query: Query<(&mut PhysicsBody, &Velocity)>, _time: Res<Time>) {
     let gravity = DVec3::new(0.0, -9.81, 0.0);
 
     for (mut body, _velocity) in &mut query {
         if body.gravity_multiplier > 0.0 {
-            body.acceleration += gravity * body.gravity_multiplier as f64;
+            let gm = body.gravity_multiplier;
+            body.acceleration += gravity * gm;
         }
     }
 }
@@ -107,7 +107,8 @@ fn apply_drag(mut query: Query<&mut PhysicsBody>, time: Res<Time>) {
 
     for mut body in &mut query {
         if body.drag > 0.0 {
-            body.velocity *= (1.0 - body.drag as f64).powf(dt);
+            let d = body.drag;
+            body.velocity *= (1.0 - d as f64).powf(dt);
         }
     }
 }
@@ -120,8 +121,8 @@ fn integrate_motion(
     let dt = time.delta_seconds() as f64;
 
     for (mut body, mut position, mut velocity) in &mut query {
-        // v = v0 + a * dt
-        body.velocity += body.acceleration * dt;
+        let accel = body.acceleration;
+        body.velocity += accel * dt;
 
         // Clamp to terminal velocity
         if body.velocity.length() > body.terminal_velocity {
@@ -149,7 +150,7 @@ fn solve_collisions(
     mut query: Query<(Entity, &mut PhysicsBody, &mut Position, &HitboxShape)>,
     chunk_layers: Query<&ChunkLayer>,
 ) {
-    for (entity, mut body, mut position, hitbox) in &mut query {
+    for (_entity, mut body, mut position, hitbox) in &mut query {
         if !body.collides_with_blocks {
             continue;
         }

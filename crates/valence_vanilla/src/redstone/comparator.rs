@@ -238,7 +238,7 @@ pub fn is_comparator(state: BlockState) -> bool {
     state.to_kind() == BlockKind::Comparator
 }
 
-pub fn get_comparator_signal(pos: BlockPos, state: BlockState) -> RedstoneSignal {
+pub fn get_comparator_signal(_pos: BlockPos, state: BlockState) -> RedstoneSignal {
     if !is_comparator(state) {
         return RedstoneSignal::none();
     }

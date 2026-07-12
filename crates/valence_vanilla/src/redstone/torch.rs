@@ -205,7 +205,7 @@ pub fn is_torch(state: BlockState) -> bool {
     )
 }
 
-pub fn get_torch_signal(pos: BlockPos, state: BlockState) -> RedstoneSignal {
+pub fn get_torch_signal(_pos: BlockPos, state: BlockState) -> RedstoneSignal {
     if !is_torch(state) {
         return RedstoneSignal::none();
     }
