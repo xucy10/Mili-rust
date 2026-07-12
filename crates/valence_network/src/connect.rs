@@ -76,17 +76,15 @@ fn get_registry_data() -> &'static CachedRegistryData {
                 continue;
             };
 
-            let values = match outer.remove("value") {
-                Some(NbtValue::List(List::Compound(values))) => values,
-                _ => continue,
+            let Some(NbtValue::List(List::Compound(values))) = outer.remove("value") else {
+                continue;
             };
 
             let entries: Vec<CachedRegistryEntry> = values
                 .into_iter()
                 .filter_map(|mut v| {
-                    let name = match v.remove("name")? {
-                        NbtValue::String(s) => s,
-                        _ => return None,
+                    let NbtValue::String(name) = v.remove("name")? else {
+                        return None;
                     };
                     let element = match v.remove("element")? {
                         NbtValue::Compound(c) => Some(c),
@@ -109,13 +107,13 @@ async fn send_registry_data(io: &mut PacketIo) -> anyhow::Result<()> {
         let reg_entries: Vec<RegistryEntry<'static>> = entries
             .iter()
             .map(|e| RegistryEntry {
-                entry_id: Ident::new(e.name.as_str()).unwrap().into(),
+                entry_id: Ident::new(e.name.as_str()).unwrap(),
                 data: e.element.clone(),
             })
             .collect();
 
         io.send_packet(&ConfigRegistryDataS2c {
-            registry_id: Ident::new(reg_name.as_str()).unwrap().into(),
+            registry_id: Ident::new(reg_name.as_str()).unwrap(),
             entries: Cow::Owned(reg_entries),
         })
         .await?;
@@ -154,7 +152,7 @@ async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
     brand_bytes.extend_from_slice(brand.as_bytes());
     io.send_packet(&ConfigCustomPayloadS2c {
         channel: ident!("minecraft:brand").into(),
-        data: valence_protocol::Bounded(valence_protocol::RawBytes(&brand_bytes)).into(),
+        data: valence_protocol::Bounded(valence_protocol::RawBytes(&brand_bytes)),
     })
     .await?;
 
