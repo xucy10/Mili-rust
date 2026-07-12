@@ -10,11 +10,11 @@ pub fn main() {
     println!("========================================");
     println!("    Mili-rust Minecraft Server");
     println!("    版本: 1.20.1");
-    println!("    端口: {}", SERVER_PORT);
+    println!("    端口: {SERVER_PORT}");
     println!("========================================");
     println!();
     println!("启动服务器...");
-    println!("用 Minecraft 1.20.1 连接 localhost:{}", SERVER_PORT);
+    println!("用 Minecraft 1.20.1 连接 localhost:{SERVER_PORT}");
     println!("按 Ctrl+C 停止服务器");
     println!();
 
@@ -37,6 +37,7 @@ pub fn main() {
 }
 
 #[derive(Resource)]
+#[allow(dead_code)]
 struct ServerPort(u16);
 
 fn setup(
@@ -69,7 +70,7 @@ fn setup(
                 .set_block([x, SPAWN_Y - 2, z], BlockState::STONE);
 
             // 简单的山丘
-            let height = ((x as f64 * 0.1).sin() * (z as f64 * 0.1).cos() * 5.0) as i32;
+            let height = ((f64::from(x) * 0.1).sin() * (f64::from(z) * 0.1).cos() * 5.0) as i32;
             for y in SPAWN_Y + 1..=SPAWN_Y + height {
                 layer.chunk.set_block([x, y, z], BlockState::STONE);
             }
@@ -213,7 +214,7 @@ fn init_clients(
     layers: Query<Entity, (With<ChunkLayer>, With<EntityLayer>)>,
 ) {
     for (
-        mut client,
+        mut _client,
         mut layer_id,
         mut visible_chunk_layer,
         mut visible_entity_layers,
