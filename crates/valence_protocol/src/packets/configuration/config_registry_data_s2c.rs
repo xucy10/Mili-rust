@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use valence_ident::Ident;
 use valence_nbt::Compound;
 
-use crate::{Decode, Encode, Packet, PacketState, VarInt};
+use crate::{Decode, Encode, Packet, PacketState};
 
 #[derive(Clone, Debug, Encode, Decode, Packet)]
 #[packet(id = 7, state = PacketState::Configuration)]

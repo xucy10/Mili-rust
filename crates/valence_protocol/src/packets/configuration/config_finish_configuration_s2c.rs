@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{Decode, Encode, Packet, PacketState};
 
 #[derive(Clone, Debug, Encode, Decode, Packet)]
