@@ -37,8 +37,8 @@
 
 ### 前置条件
 
-1. **Rust** - https://rustup.rs
-2. **Visual Studio Build Tools** - https://visualstudio.microsoft.com/visual-cpp-build-tools/
+1. **Rust** - <https://rustup.rs>
+2. **Visual Studio Build Tools** - <https://visualstudio.microsoft.com/visual-cpp-build-tools/>
    - 安装时选择 "C++ 桌面开发"
 
 ### 构建和运行
