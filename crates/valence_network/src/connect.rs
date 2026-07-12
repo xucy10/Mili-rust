@@ -21,15 +21,14 @@ use sha2::{Digest, Sha256};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, trace, warn};
 use uuid::Uuid;
-use valence_ident::Ident;
 use valence_lang::keys;
-use valence_nbt::{Compound, List, Value as NbtValue};
+use valence_protocol::nbt::{Compound, List, Value as NbtValue};
 use valence_protocol::profile::Property;
 use valence_protocol::Decode;
+use valence_protocol::Encode;
+use valence_protocol::Ident;
 use valence_server::client::Properties;
-use valence_server::protocol::encode::Encode;
 use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
-use valence_server::protocol::packets::configuration::config_select_known_packs_s2c::KnownPack;
 use valence_server::protocol::packets::configuration::{
     ConfigClientInformationC2s, ConfigCustomPayloadS2c, ConfigFinishConfigurationC2s,
     ConfigFinishConfigurationS2c, ConfigRegistryDataS2c, ConfigSelectKnownPacksC2s,
@@ -66,7 +65,7 @@ static REGISTRY_DATA: OnceLock<CachedRegistryData> = OnceLock::new();
 fn get_registry_data() -> &'static CachedRegistryData {
     REGISTRY_DATA.get_or_init(|| {
         let bytes = include_bytes!("../../valence_registry/extracted/registry_codec.dat");
-        let compound = valence_nbt::from_binary(&mut bytes.as_slice())
+        let compound = valence_protocol::nbt::from_binary(&mut bytes.as_slice())
             .expect("failed to decode vanilla registry codec")
             .0;
 
