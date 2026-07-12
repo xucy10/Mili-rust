@@ -12,6 +12,12 @@
     clippy::manual_find,
     clippy::explicit_auto_deref,
     clippy::unseparated_literal_suffix,
+    clippy::collapsible_if,
+    clippy::collapsible_match,
+    clippy::impl_trait_in_params,
+    clippy::unused_self,
+    clippy::manual_let_else,
+    clippy::manual_range_contains,
     unused_mut
 )]
 
