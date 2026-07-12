@@ -32,7 +32,7 @@ use valence_server::protocol::packets::configuration::config_registry_data_s2c::
 use valence_server::protocol::packets::configuration::{
     ConfigClientInformationC2s, ConfigCustomPayloadS2c, ConfigFinishConfigurationC2s,
     ConfigFinishConfigurationS2c, ConfigRegistryDataS2c, ConfigSelectKnownPacksC2s,
-    ConfigSelectKnownPacksS2c, ConfigUpdateTagsS2c,
+    ConfigSelectKnownPacksS2c, ConfigUpdateEnabledFeaturesS2c, ConfigUpdateTagsS2c,
 };
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
@@ -153,6 +153,12 @@ async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
     io.send_packet(&ConfigCustomPayloadS2c {
         channel: ident!("minecraft:brand").into(),
         data: valence_protocol::Bounded(valence_protocol::RawBytes(&brand_bytes)),
+    })
+    .await?;
+
+    // 6.5. Send enabled features (minecraft:vanilla required for MC 26.2)
+    io.send_packet(&ConfigUpdateEnabledFeaturesS2c {
+        features: Cow::Borrowed(&["minecraft:vanilla"]),
     })
     .await?;
 
@@ -438,6 +444,7 @@ async fn handle_login(
         uuid: info.uuid,
         username: info.username.as_str().into(),
         properties: Default::default(),
+        session_id: info.uuid,
     })
     .await?;
 
@@ -447,6 +454,7 @@ async fn handle_login(
         uuid: info.uuid,
         username: (&info.username[..]).into(),
         properties: Default::default(),
+        session_id: info.uuid,
     };
     <LoginSuccessS2c as valence_protocol::Packet>::encode_with_id(&debug_pkt, &mut debug_buf).ok();
     error!(

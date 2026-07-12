@@ -11,4 +11,5 @@ pub struct LoginSuccessS2c<'a> {
     pub uuid: Uuid,
     pub username: Bounded<&'a str, 16>,
     pub properties: Cow<'a, [Property<&'a str>]>,
+    pub session_id: Uuid,
 }
