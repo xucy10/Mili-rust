@@ -4,39 +4,30 @@ use bevy_ecs::prelude::Resource;
 use serde::{Deserialize, Serialize};
 use valence::prelude::ConnectionMode;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Resource)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Resource)]
 #[serde(default)]
-pub struct ServerConfig {
-    pub server: ServerSection,
-    pub world: WorldSection,
+pub(crate) struct ServerConfig {
+    pub(crate) server: ServerSection,
+    pub(crate) world: WorldSection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct ServerSection {
-    pub port: u16,
-    pub max_players: usize,
-    pub online_mode: bool,
-    pub motd: String,
+pub(crate) struct ServerSection {
+    pub(crate) port: u16,
+    pub(crate) max_players: usize,
+    pub(crate) online_mode: bool,
+    pub(crate) motd: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct WorldSection {
-    pub spawn_x: i32,
-    pub spawn_y: i32,
-    pub spawn_z: i32,
-    pub terrain_radius: i32,
-    pub chunk_radius: i32,
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerSection::default(),
-            world: WorldSection::default(),
-        }
-    }
+pub(crate) struct WorldSection {
+    pub(crate) spawn_x: i32,
+    pub(crate) spawn_y: i32,
+    pub(crate) spawn_z: i32,
+    pub(crate) terrain_radius: i32,
+    pub(crate) chunk_radius: i32,
 }
 
 impl Default for ServerSection {
@@ -63,7 +54,7 @@ impl Default for WorldSection {
 }
 
 impl ServerConfig {
-    pub fn load_or_create<P: AsRef<Path>>(path: P) -> Self {
+    pub(crate) fn load_or_create<P: AsRef<Path>>(path: P) -> Self {
         let path = path.as_ref();
         if path.exists() {
             match std::fs::read_to_string(path) {
@@ -95,7 +86,7 @@ impl ServerConfig {
         config
     }
 
-    pub fn connection_mode(&self) -> ConnectionMode {
+    pub(crate) fn connection_mode(&self) -> ConnectionMode {
         if self.server.online_mode {
             ConnectionMode::Online {
                 prevent_proxy_connections: false,

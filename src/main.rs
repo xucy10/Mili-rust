@@ -22,7 +22,6 @@ pub fn main() {
     let config = ServerConfig::load_or_create("config.toml");
 
     let port = config.server.port;
-    let spawn_y = config.world.spawn_y;
     let online = config.server.online_mode;
 
     println!("========================================");
