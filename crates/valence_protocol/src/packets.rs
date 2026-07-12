@@ -20,12 +20,35 @@ pub mod login {
     pub use login_hello_s2c::LoginHelloS2c;
     pub mod login_key_c2s;
     pub use login_key_c2s::LoginKeyC2s;
+    pub mod login_acknowledged_c2s;
+    pub use login_acknowledged_c2s::LoginAcknowledgedC2s;
     pub mod login_query_request_s2c;
     pub use login_query_request_s2c::LoginQueryRequestS2c;
     pub mod login_query_response_c2s;
     pub use login_query_response_c2s::LoginQueryResponseC2s;
     pub mod login_success_s2c;
     pub use login_success_s2c::LoginSuccessS2c;
+}
+
+pub mod configuration {
+    pub mod config_client_information_c2s;
+    pub use config_client_information_c2s::ConfigClientInformationC2s;
+    pub mod config_finish_configuration_c2s;
+    pub use config_finish_configuration_c2s::ConfigFinishConfigurationC2s;
+    pub mod config_finish_configuration_s2c;
+    pub use config_finish_configuration_s2c::ConfigFinishConfigurationS2c;
+    pub mod config_select_known_packs_s2c;
+    pub use config_select_known_packs_s2c::ConfigSelectKnownPacksS2c;
+    pub mod config_select_known_packs_c2s;
+    pub use config_select_known_packs_c2s::ConfigSelectKnownPacksC2s;
+    pub mod config_registry_data_s2c;
+    pub use config_registry_data_s2c::ConfigRegistryDataS2c;
+    pub mod config_update_tags_s2c;
+    pub use config_update_tags_s2c::ConfigUpdateTagsS2c;
+    pub mod config_custom_payload_s2c;
+    pub use config_custom_payload_s2c::ConfigCustomPayloadS2c;
+    pub mod config_update_enabled_features_s2c;
+    pub use config_update_enabled_features_s2c::ConfigUpdateEnabledFeaturesS2c;
 }
 
 pub mod play {

@@ -1,7 +1,10 @@
 //! Handles new connections to the server and the log-in process.
 
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::io;
 use std::net::SocketAddr;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
@@ -18,19 +21,29 @@ use sha2::{Digest, Sha256};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info, trace, warn};
 use uuid::Uuid;
+use valence_ident::Ident;
 use valence_lang::keys;
+use valence_nbt::{Compound, List, Value as NbtValue};
 use valence_protocol::profile::Property;
 use valence_protocol::Decode;
 use valence_server::client::Properties;
+use valence_server::protocol::packets::configuration::{
+    ConfigClientInformationC2s, ConfigCustomPayloadS2c, ConfigFinishConfigurationC2s,
+    ConfigFinishConfigurationS2c, ConfigRegistryDataS2c, ConfigSelectKnownPacksC2s,
+    ConfigSelectKnownPacksS2c, ConfigUpdateTagsS2c,
+};
+use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
+use valence_server::protocol::packets::configuration::config_select_known_packs_s2c::KnownPack;
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
 use valence_server::protocol::packets::login::{
     LoginCompressionS2c, LoginDisconnectS2c, LoginHelloC2s, LoginHelloS2c, LoginKeyC2s,
-    LoginQueryRequestS2c, LoginQueryResponseC2s, LoginSuccessS2c,
+    LoginQueryRequestS2c, LoginQueryResponseC2s, LoginSuccessS2c, LoginAcknowledgedC2s,
 };
 use valence_server::protocol::packets::status::{
     QueryPingC2s, QueryPongS2c, QueryRequestC2s, QueryResponseS2c,
 };
+use valence_server::protocol::encode::Encode;
 use valence_server::protocol::{PacketDecoder, PacketEncoder, RawBytes, VarInt};
 use valence_server::text::{Color, IntoText};
 use valence_server::{ident, Text, MINECRAFT_VERSION, PROTOCOL_VERSION};
@@ -38,6 +51,123 @@ use valence_server::{ident, Text, MINECRAFT_VERSION, PROTOCOL_VERSION};
 use crate::legacy_ping::try_handle_legacy_ping;
 use crate::packet_io::PacketIo;
 use crate::{CleanupOnDrop, ConnectionMode, NewClientInfo, ServerListPing, SharedNetworkState};
+
+struct CachedRegistryEntry {
+    name: String,
+    element: Option<Compound>,
+}
+
+struct CachedRegistryData {
+    entries: Vec<(String, Vec<CachedRegistryEntry>)>,
+}
+
+static REGISTRY_DATA: OnceLock<CachedRegistryData> = OnceLock::new();
+
+fn get_registry_data() -> &'static CachedRegistryData {
+    REGISTRY_DATA.get_or_init(|| {
+        let bytes = include_bytes!("../../valence_registry/extracted/registry_codec.dat");
+        let compound = valence_nbt::from_binary(&mut bytes.as_slice())
+            .expect("failed to decode vanilla registry codec")
+            .0;
+
+        let mut result = vec![];
+
+        for (reg_name, reg_value) in compound {
+            let NbtValue::Compound(mut outer) = reg_value else {
+                continue;
+            };
+
+            let values = match outer.remove("value") {
+                Some(NbtValue::List(List::Compound(values))) => values,
+                _ => continue,
+            };
+
+            let entries: Vec<CachedRegistryEntry> = values
+                .into_iter()
+                .filter_map(|mut v| {
+                    let name = match v.remove("name")? {
+                        NbtValue::String(s) => s,
+                        _ => return None,
+                    };
+                    let element = match v.remove("element")? {
+                        NbtValue::Compound(c) => Some(c),
+                        _ => None,
+                    };
+                    Some(CachedRegistryEntry { name, element })
+                })
+                .collect();
+
+            result.push((reg_name, entries));
+        }
+
+        CachedRegistryData { entries: result }
+    })
+}
+
+async fn send_registry_data(io: &mut PacketIo) -> anyhow::Result<()> {
+    let data = get_registry_data();
+    for (reg_name, entries) in &data.entries {
+        let reg_entries: Vec<RegistryEntry<'static>> = entries
+            .iter()
+            .map(|e| RegistryEntry {
+                entry_id: Ident::new(e.name.as_str()).unwrap().into(),
+                data: e.element.clone(),
+            })
+            .collect();
+
+        io.send_packet(&ConfigRegistryDataS2c {
+            registry_id: Ident::new(reg_name.as_str()).unwrap().into(),
+            entries: Cow::Owned(reg_entries),
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
+    // 1. Receive client information
+    let _client_info: ConfigClientInformationC2s = io.recv_packet().await?;
+    trace!("received client information in configuration phase");
+
+    // 2. Send known packs (empty - server doesn't know any packs)
+    io.send_packet(&ConfigSelectKnownPacksS2c {
+        packs: Cow::Borrowed(&[]),
+    })
+    .await?;
+
+    // 3. Receive client's known packs response
+    let _known_packs: ConfigSelectKnownPacksC2s = io.recv_packet().await?;
+
+    // 4. Send registry data
+    send_registry_data(io).await?;
+
+    // 5. Send tags (empty for now - the client can work without them)
+    // TODO: send actual tags data
+    io.send_packet(&ConfigUpdateTagsS2c {
+        groups: Cow::Borrowed(&BTreeMap::new()),
+    })
+    .await?;
+
+    // 6. Send brand
+    let brand = "Mili-rust";
+    let mut brand_bytes = Vec::new();
+    VarInt(brand.len() as i32).encode(&mut brand_bytes)?;
+    brand_bytes.extend_from_slice(brand.as_bytes());
+    io.send_packet(&ConfigCustomPayloadS2c {
+        channel: ident!("minecraft:brand").into(),
+        data: valence_protocol::Bounded(valence_protocol::RawBytes(&brand_bytes)).into(),
+    })
+    .await?;
+
+    // 7. Send finish configuration
+    io.send_packet(&ConfigFinishConfigurationS2c).await?;
+
+    // 8. Receive client's finish configuration ack
+    let _finish_ack: ConfigFinishConfigurationC2s = io.recv_packet().await?;
+    trace!("configuration phase complete");
+
+    Ok(())
+}
 
 /// Accepts new connections to the server as they occur.
 pub(super) async fn do_accept_loop(shared: SharedNetworkState) {
@@ -311,6 +441,13 @@ async fn handle_login(
         properties: Default::default(),
     })
     .await?;
+
+    // Wait for LoginAcknowledged (required by modern MC clients)
+    let _login_ack: LoginAcknowledgedC2s = io.recv_packet().await?;
+    trace!("received login acknowledged, entering configuration phase");
+
+    // Handle Configuration phase
+    handle_configuration(io).await?;
 
     Ok(Some((info, cleanup)))
 }

@@ -288,13 +288,14 @@ pub enum PacketSide {
     Serverbound,
 }
 
-/// The statein  which a packet is used.
+/// The state in which a packet is used.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum PacketState {
     Handshaking,
     Status,
     Login,
     Play,
+    Configuration,
 }
 
 #[allow(dead_code)]
