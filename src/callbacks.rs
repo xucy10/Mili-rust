@@ -42,7 +42,7 @@ impl valence::network::NetworkCallbacks for MiliCallbacks {
             online_players: 0,
             max_players: self.max_players as i32,
             player_sample: vec![],
-            description: pick_motd(&self.motd).into_text(),
+            description: pick_motd(&self.motd).to_owned().into_text(),
             favicon_png: &[],
             version_name: MINECRAFT_VERSION.to_owned(),
             protocol: handshake_data.protocol_version,
