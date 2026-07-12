@@ -402,15 +402,7 @@ async fn handle_login(
 
     let username = username.0.to_owned();
 
-    let info = match shared.connection_mode() {
-        ConnectionMode::Online { .. } => login_online(shared, io, remote_addr, username).await?,
-        ConnectionMode::Offline => login_offline(remote_addr, username)?,
-        ConnectionMode::BungeeCord => {
-            login_bungeecord(remote_addr, &handshake.server_address, username)?
-        }
-        ConnectionMode::Velocity { secret } => login_velocity(io, username, secret).await?,
-    };
-
+    // Step 1: Setup compression FIRST (before encryption, matching ferrumc order)
     if shared.0.threshold.0 > 0 {
         io.send_packet(&LoginCompressionS2c {
             threshold: shared.0.threshold.0.into(),
@@ -419,6 +411,16 @@ async fn handle_login(
 
         io.set_compression(shared.0.threshold);
     }
+
+    // Step 2: Authentication + encryption (after compression)
+    let info = match shared.connection_mode() {
+        ConnectionMode::Online { .. } => login_online(shared, io, remote_addr, username).await?,
+        ConnectionMode::Offline => login_offline(remote_addr, username)?,
+        ConnectionMode::BungeeCord => {
+            login_bungeecord(remote_addr, &handshake.server_address, username)?
+        }
+        ConnectionMode::Velocity { secret } => login_velocity(io, username, secret).await?,
+    };
 
     let cleanup = match shared.0.callbacks.inner.login(shared, &info).await {
         Ok(f) => CleanupOnDrop(Some(f)),
@@ -438,6 +440,25 @@ async fn handle_login(
         properties: Default::default(),
     })
     .await?;
+
+    {
+        // Debug: encode LoginSuccessS2c to bytes and log for protocol analysis
+        let mut buf = Vec::new();
+        let pkt = LoginSuccessS2c {
+            uuid: info.uuid,
+            username: (&info.username[..]).into(),
+            properties: Default::default(),
+        };
+        use valence_protocol::Encode as _;
+        use valence_protocol::Packet as _;
+        pkt.encode_with_id(&mut buf).ok();
+        error!(
+            "LoginSuccessS2c raw bytes (id={} len={}): {:02x?}",
+            LoginSuccessS2c::ID,
+            buf.len(),
+            &buf[..],
+        );
+    }
 
     // Wait for LoginAcknowledged (required by modern MC clients)
     let _login_ack: LoginAcknowledgedC2s = io.recv_packet().await?;
@@ -462,6 +483,7 @@ async fn login_online(
         server_id: "".into(), // Always empty
         public_key: &shared.0.public_key_der,
         verify_token: &my_verify_token,
+        should_authenticate: matches!(shared.connection_mode(), ConnectionMode::Online { .. }),
     })
     .await?;
 

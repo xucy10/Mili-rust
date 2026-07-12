@@ -6,4 +6,5 @@ pub struct LoginHelloS2c<'a> {
     pub server_id: Bounded<&'a str, 20>,
     pub public_key: &'a [u8],
     pub verify_token: &'a [u8],
+    pub should_authenticate: bool,
 }

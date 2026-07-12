@@ -17,6 +17,7 @@ pub(crate) struct ServerConfig {
     pub(crate) chunk_render_distance: u32,
     pub(crate) default_gamemode: String,
     pub(crate) network_compression_threshold: i32,
+    pub(crate) compression_enabled: bool,
     pub(crate) world: String,
     pub(crate) spawn: SpawnConfig,
 }
@@ -43,7 +44,8 @@ impl Default for ServerConfig {
             whitelist: false,
             chunk_render_distance: 5,
             default_gamemode: "survival".into(),
-            network_compression_threshold: 64,
+            network_compression_threshold: 256,
+            compression_enabled: true,
             world: "world".into(),
             spawn: SpawnConfig::default(),
         }

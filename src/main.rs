@@ -3,6 +3,7 @@ mod config;
 
 use bevy_time::TimePlugin;
 use valence::prelude::*;
+use valence_server::{CompressionThreshold, ServerSettings};
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
 use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
@@ -40,6 +41,14 @@ pub fn main() {
     println!("    Mili-rust Minecraft Server");
     println!("    端口: {port}");
     println!("    正版验证: {}", if online { "开启" } else { "关闭" });
+    println!(
+        "    压缩: {}",
+        if config.compression_enabled {
+            format!("开启 (threshold={})", config.network_compression_threshold)
+        } else {
+            "关闭".into()
+        }
+    );
     if !config.motd.is_empty() {
         println!("    MOTD: {}", config.motd[0]);
     }
@@ -63,7 +72,20 @@ pub fn main() {
         ..Default::default()
     };
 
+    // ServerSettings 也必须在 DefaultPlugins 之前插入，
+    // 否则会使用默认的 CompressionThreshold(256) 而非 config 中的值
+    let compression_threshold = if config.compression_enabled {
+        CompressionThreshold(config.network_compression_threshold)
+    } else {
+        CompressionThreshold(-1) // 禁用压缩
+    };
+    let server_settings = ServerSettings {
+        compression_threshold,
+        ..Default::default()
+    };
+
     App::new()
+        .insert_resource(server_settings)
         .insert_resource(network_settings)
         .add_plugins(DefaultPlugins)
         .add_plugins(TimePlugin)
