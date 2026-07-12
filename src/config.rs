@@ -1,9 +1,10 @@
 use std::path::Path;
 
+use bevy_ecs::prelude::Resource;
 use serde::{Deserialize, Serialize};
 use valence::prelude::ConnectionMode;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Resource)]
 #[serde(default)]
 pub struct ServerConfig {
     pub server: ServerSection,

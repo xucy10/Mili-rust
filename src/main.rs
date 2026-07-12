@@ -1,6 +1,7 @@
 mod config;
 
 use bevy_time::TimePlugin;
+use std::default::Default;
 use valence::prelude::*;
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
 use valence_vanilla::VanillaPlugin;
