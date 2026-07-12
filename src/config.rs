@@ -35,7 +35,7 @@ impl Default for ServerSection {
         Self {
             port: 25565,
             max_players: 20,
-            online_mode: true,
+            online_mode: false,
             motd: "Mili-rust Server".into(),
         }
     }

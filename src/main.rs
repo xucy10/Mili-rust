@@ -9,17 +9,27 @@ use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
 use crate::config::ServerConfig;
 
 pub fn main() {
-    // Windows 控制台 UTF-8 编码支持
+    // Windows: 双击exe时分配控制台窗口
     #[cfg(windows)]
     unsafe {
         extern "system" {
+            fn AllocConsole() -> i32;
             fn SetConsoleOutputCP(codepage: u32) -> i32;
             fn SetConsoleCP(codepage: u32) -> i32;
         }
+        // AllocConsole 在已有控制台时不会失败
+        AllocConsole();
         SetConsoleOutputCP(65001);
         SetConsoleCP(65001);
     }
-    let config = ServerConfig::load_or_create("config.toml");
+
+    // 配置文件路径: exe所在目录/config.toml
+    let config_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("config.toml")))
+        .unwrap_or_else(|| "config.toml".into());
+
+    let config = ServerConfig::load_or_create(&config_path);
 
     let port = config.server.port;
     let online = config.server.online_mode;
