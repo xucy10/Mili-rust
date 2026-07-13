@@ -5,6 +5,9 @@ use bevy_time::TimePlugin;
 use valence::prelude::*;
 use valence_server::{CompressionThreshold, ServerSettings};
 use valence_vanilla::block_update::{BlockUpdateEvent, NeighborUpdateEvent};
+use valence_vanilla::crafting::{register_vanilla_recipes, CraftingRegistry};
+use valence_vanilla::mob_spawning::{spawn_mob, MobType};
+use valence_vanilla::terrain::TerrainSeed;
 use valence_vanilla::VanillaPlugin;
 use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
 
@@ -12,7 +15,6 @@ use crate::callbacks::MiliCallbacks;
 use crate::config::ServerConfig;
 
 pub fn main() {
-    // Windows: 双击exe时分配控制台窗口
     #[cfg(windows)]
     unsafe {
         extern "system" {
@@ -20,13 +22,11 @@ pub fn main() {
             fn SetConsoleOutputCP(codepage: u32) -> i32;
             fn SetConsoleCP(codepage: u32) -> i32;
         }
-        // AllocConsole 在已有控制台时不会失败
         AllocConsole();
         SetConsoleOutputCP(65001);
         SetConsoleCP(65001);
     }
 
-    // 配置文件路径: exe所在目录/config.toml
     let config_path = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.join("config.toml")))
@@ -62,9 +62,6 @@ pub fn main() {
     let connection_mode = config.connection_mode();
     let address = format!("0.0.0.0:{port}").parse().unwrap();
 
-    // NetworkSettings 必须在 DefaultPlugins 之前插入，
-    // 因为 NetworkPlugin 用 get_resource_or_insert_with 读取，
-    // 如果 DefaultPlugins 先构建会覆盖我们的设置
     let network_settings = NetworkSettings {
         address,
         connection_mode,
@@ -72,12 +69,10 @@ pub fn main() {
         ..Default::default()
     };
 
-    // ServerSettings 也必须在 DefaultPlugins 之前插入，
-    // 否则会使用默认的 CompressionThreshold(256) 而非 config 中的值
     let compression_threshold = if config.compression_enabled {
         CompressionThreshold(config.network_compression_threshold)
     } else {
-        CompressionThreshold(-1) // 禁用压缩
+        CompressionThreshold(-1)
     };
     let server_settings = ServerSettings {
         compression_threshold,
@@ -92,6 +87,7 @@ pub fn main() {
         .add_plugins(VanillaPlugin)
         .add_plugins(WorldSavePlugin)
         .insert_resource(config)
+        .add_systems(PreStartup, register_crafting_recipes)
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -105,59 +101,111 @@ pub fn main() {
         .run();
 }
 
+fn register_crafting_recipes(mut registry: ResMut<CraftingRegistry>) {
+    register_vanilla_recipes(&mut registry);
+    println!("已注册合成配方");
+}
+
 fn setup(
     mut commands: Commands,
     server: Res<Server>,
     dimensions: Res<DimensionTypeRegistry>,
     biomes: Res<BiomeRegistry>,
     config: Res<ServerConfig>,
+    terrain_seed: Res<TerrainSeed>,
 ) {
-    let spawn_y = config.spawn.y;
-    let terrain_radius = config.spawn.terrain_radius;
     let chunk_radius = config.chunk_render_distance as i32;
+    let seed = terrain_seed.seed;
 
-    println!("生成世界...");
+    println!("生成主世界 (种子: {seed})...");
+    let mut overworld = LayerBundle::new(ident!("overworld"), &dimensions, &biomes, &server);
 
-    let mut layer = LayerBundle::new(ident!("overworld"), &dimensions, &biomes, &server);
+    let gen = valence_vanilla::terrain::TerrainGenerator::new(
+        valence_vanilla::terrain::Dimension::Overworld,
+        seed,
+    );
 
     for z in -chunk_radius..chunk_radius {
         for x in -chunk_radius..chunk_radius {
-            layer.chunk.insert_chunk([x, z], UnloadedChunk::new());
+            let chunk_data = gen.generate_chunk(x, z);
+            overworld.chunk.insert_chunk([x, z], chunk_data);
         }
     }
 
-    for z in -terrain_radius..terrain_radius {
-        for x in -terrain_radius..terrain_radius {
-            layer
-                .chunk
-                .set_block([x, spawn_y, z], BlockState::GRASS_BLOCK);
-            layer.chunk.set_block([x, spawn_y - 1, z], BlockState::DIRT);
-            layer
-                .chunk
-                .set_block([x, spawn_y - 2, z], BlockState::STONE);
+    create_spawn_area(&mut overworld, config.spawn.y);
+    commands.spawn(overworld);
+    println!("主世界生成完成!");
 
-            let height = ((f64::from(x) * 0.1).sin() * (f64::from(z) * 0.1).cos() * 5.0) as i32;
-            for y in spawn_y + 1..=spawn_y + height {
-                layer.chunk.set_block([x, y, z], BlockState::STONE);
-            }
+    println!("生成下界...");
+    let mut nether = LayerBundle::new(ident!("the_nether"), &dimensions, &biomes, &server);
+
+    let nether_gen = valence_vanilla::terrain::TerrainGenerator::new(
+        valence_vanilla::terrain::Dimension::Nether,
+        seed.wrapping_add(1000),
+    );
+
+    let nether_radius = (chunk_radius / 2).max(3);
+    for z in -nether_radius..nether_radius {
+        for x in -nether_radius..nether_radius {
+            let chunk_data = nether_gen.generate_chunk(x, z);
+            nether.chunk.insert_chunk([x, z], chunk_data);
         }
     }
 
-    println!("创建红石演示区域...");
-    create_redstone_demo(&mut layer, spawn_y);
+    commands.spawn(nether);
+    println!("下界生成完成!");
 
-    println!("创建农场演示区域...");
-    create_farm_demo(&mut layer, spawn_y);
+    println!("生成末地...");
+    let mut end = LayerBundle::new(ident!("the_end"), &dimensions, &biomes, &server);
 
-    println!("创建漏斗演示区域...");
-    create_hopper_demo(&mut layer, spawn_y);
+    let end_gen = valence_vanilla::terrain::TerrainGenerator::new(
+        valence_vanilla::terrain::Dimension::End,
+        seed.wrapping_add(2000),
+    );
 
-    commands.spawn(layer);
+    let end_radius = (chunk_radius / 2).max(3);
+    for z in -end_radius..end_radius {
+        for x in -end_radius..end_radius {
+            let chunk_data = end_gen.generate_chunk(x, z);
+            end.chunk.insert_chunk([x, z], chunk_data);
+        }
+    }
+
+    commands.spawn(end);
+    println!("末地生成完成!");
+
+    println!("生成初始村民...");
+    let spawn_y = config.spawn.y;
+    let villager_positions = [
+        DVec3::new(8.0, spawn_y as f64 + 2.0, 8.0),
+        DVec3::new(-8.0, spawn_y as f64 + 2.0, 8.0),
+        DVec3::new(8.0, spawn_y as f64 + 2.0, -8.0),
+    ];
+
+    for pos in villager_positions {
+        spawn_mob(&mut commands, MobType::Villager, pos);
+    }
 
     println!("世界生成完成!");
     println!();
 
     commands.insert_resource(WorldSaveManager::new("./world"));
+}
+
+fn create_spawn_area(layer: &mut LayerBundle, spawn_y: i32) {
+    for x in -2..=2 {
+        for z in -2..=2 {
+            layer.chunk.set_block([x, spawn_y + 1, z], BlockState::AIR);
+        }
+    }
+
+    layer
+        .chunk
+        .set_block([0, spawn_y + 1, 0], BlockState::CRAFTING_TABLE);
+
+    create_redstone_demo(layer, spawn_y);
+    create_farm_demo(layer, spawn_y);
+    create_hopper_demo(layer, spawn_y);
 }
 
 fn create_redstone_demo(layer: &mut LayerBundle, spawn_y: i32) {
@@ -271,11 +319,13 @@ fn init_clients(
         mut inventory,
     ) in &mut clients
     {
-        let layer = layers.single();
+        let layer = layers.iter().next().unwrap_or_else(|| layers.single());
 
         layer_id.0 = layer;
         visible_chunk_layer.0 = layer;
-        visible_entity_layers.0.insert(layer);
+        for l in &layers {
+            visible_entity_layers.0.insert(l);
+        }
         pos.set([0.0, f64::from(spawn_y + 2), 0.0]);
 
         inventory.set_slot(36, ItemStack::new(ItemKind::DiamondPickaxe, 1, None));
@@ -287,6 +337,11 @@ fn init_clients(
         inventory.set_slot(42, ItemStack::new(ItemKind::Repeater, 4, None));
         inventory.set_slot(43, ItemStack::new(ItemKind::Comparator, 4, None));
         inventory.set_slot(44, ItemStack::new(ItemKind::RedstoneLamp, 4, None));
+        inventory.set_slot(45, ItemStack::new(ItemKind::OakPlanks, 64, None));
+        inventory.set_slot(46, ItemStack::new(ItemKind::IronIngot, 32, None));
+        inventory.set_slot(47, ItemStack::new(ItemKind::Coal, 32, None));
+        inventory.set_slot(48, ItemStack::new(ItemKind::CraftingTable, 4, None));
+        inventory.set_slot(49, ItemStack::new(ItemKind::Furnace, 2, None));
 
         println!("新玩家加入游戏!");
     }
@@ -302,7 +357,5 @@ fn handle_block_updates(mut events: EventReader<BlockUpdateEvent>) {
 }
 
 fn handle_neighbor_updates(mut events: EventReader<NeighborUpdateEvent>) {
-    for _event in events.read() {
-        // 邻居更新日志太多，这里不打印
-    }
+    for _event in events.read() {}
 }

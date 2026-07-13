@@ -22,11 +22,15 @@
 )]
 
 pub mod block_update;
+pub mod combat;
+pub mod crafting;
 pub mod crop;
 pub mod entity_ai;
 pub mod hopper;
+pub mod mob_spawning;
 pub mod physics;
 pub mod redstone;
+pub mod terrain;
 pub mod tick_schedule;
 pub mod villager;
 
@@ -45,6 +49,10 @@ impl Plugin for VanillaPlugin {
             villager::VillagerPlugin,
             physics::PhysicsPlugin,
             entity_ai::EntityAiPlugin,
+            combat::CombatPlugin,
+            mob_spawning::MobSpawningPlugin,
+            terrain::TerrainPlugin,
+            crafting::CraftingPlugin,
         ));
     }
 }

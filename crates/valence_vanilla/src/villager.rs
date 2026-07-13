@@ -577,6 +577,7 @@ impl Plugin for VillagerPlugin {
             .insert_resource(TimeOfDay::default())
             .add_event::<VillagerActivityChanged>()
             .add_event::<VillagerLeveledUp>()
+            .add_systems(PreStartup, register_default_trades)
             .add_systems(
                 Update,
                 (
@@ -585,8 +586,476 @@ impl Plugin for VillagerPlugin {
                     workstation_binding_system,
                     bed_binding_system,
                     villager_movement_system,
+                    villager_trade_levelup_system,
                 )
                     .chain(),
             );
+    }
+}
+
+fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
+    use valence_protocol::ItemKind;
+
+    let wheat = ItemStack::new(ItemKind::Wheat, 20, None);
+    let bread = ItemStack::new(ItemKind::Bread, 1, None);
+    let emerald = ItemStack::new(ItemKind::Emerald, 1, None);
+    let carrot = ItemStack::new(ItemKind::Carrot, 15, None);
+    let potato = ItemStack::new(ItemKind::Potato, 15, None);
+    let beetroot = ItemStack::new(ItemKind::Beetroot, 15, None);
+    let cake = ItemStack::new(ItemKind::Cake, 1, None);
+    let cookie = ItemStack::new(ItemKind::Cookie, 3, None);
+    let apple = ItemStack::new(ItemKind::Apple, 4, None);
+    let golden_carrot = ItemStack::new(ItemKind::GoldenCarrot, 3, None);
+    let glistering_melon = ItemStack::new(ItemKind::GlisteringMelonSlice, 3, None);
+    let arrow = ItemStack::new(ItemKind::Arrow, 16, None);
+    let bow = ItemStack::new(ItemKind::Bow, 1, None);
+    let crossbow = ItemStack::new(ItemKind::Crossbow, 1, None);
+    let flint = ItemStack::new(ItemKind::Flint, 10, None);
+    let string = ItemStack::new(ItemKind::String, 2, None);
+    let feather = ItemStack::new(ItemKind::Feather, 24, None);
+    let iron_ingot = ItemStack::new(ItemKind::IronIngot, 4, None);
+    let iron_boots = ItemStack::new(ItemKind::IronBoots, 1, None);
+    let iron_leggings = ItemStack::new(ItemKind::IronLeggings, 1, None);
+    let iron_chestplate = ItemStack::new(ItemKind::IronChestplate, 1, None);
+    let iron_helmet = ItemStack::new(ItemKind::IronHelmet, 1, None);
+    let iron_sword = ItemStack::new(ItemKind::IronSword, 1, None);
+    let iron_axe = ItemStack::new(ItemKind::IronAxe, 1, None);
+    let iron_pickaxe = ItemStack::new(ItemKind::IronPickaxe, 1, None);
+    let iron_shovel = ItemStack::new(ItemKind::IronShovel, 1, None);
+    let diamond = ItemStack::new(ItemKind::Diamond, 1, None);
+    let diamond_boots = ItemStack::new(ItemKind::DiamondBoots, 1, None);
+    let diamond_leggings = ItemStack::new(ItemKind::DiamondLeggings, 1, None);
+    let diamond_chestplate = ItemStack::new(ItemKind::DiamondChestplate, 1, None);
+    let diamond_helmet = ItemStack::new(ItemKind::DiamondHelmet, 1, None);
+    let diamond_sword = ItemStack::new(ItemKind::DiamondSword, 1, None);
+    let diamond_axe = ItemStack::new(ItemKind::DiamondAxe, 1, None);
+    let diamond_pickaxe = ItemStack::new(ItemKind::DiamondPickaxe, 1, None);
+    let coal = ItemStack::new(ItemKind::Coal, 15, None);
+    let bucket = ItemStack::new(ItemKind::Bucket, 1, None);
+    let bell = ItemStack::new(ItemKind::Bell, 1, None);
+    let book = ItemStack::new(ItemKind::Book, 12, None);
+    let ink_sac = ItemStack::new(ItemKind::InkSac, 5, None);
+    let lantern = ItemStack::new(ItemKind::Lantern, 1, None);
+    let name_tag = ItemStack::new(ItemKind::NameTag, 1, None);
+    let redstone = ItemStack::new(ItemKind::Redstone, 2, None);
+    let lapis_lazuli = ItemStack::new(ItemKind::LapisLazuli, 1, None);
+    let glowstone = ItemStack::new(ItemKind::GlowstoneDust, 1, None);
+    let rotten_flesh = ItemStack::new(ItemKind::RottenFlesh, 32, None);
+    let leather = ItemStack::new(ItemKind::Leather, 9, None);
+    let saddle = ItemStack::new(ItemKind::Saddle, 6, None);
+    let leather_helmet = ItemStack::new(ItemKind::LeatherHelmet, 1, None);
+    let leather_chestplate = ItemStack::new(ItemKind::LeatherChestplate, 1, None);
+    let leather_leggings = ItemStack::new(ItemKind::LeatherLeggings, 1, None);
+    let leather_boots = ItemStack::new(ItemKind::LeatherBoots, 1, None);
+    let paper = ItemStack::new(ItemKind::Paper, 24, None);
+    let clock = ItemStack::new(ItemKind::Clock, 5, None);
+    let glass = ItemStack::new(ItemKind::Glass, 4, None);
+    let experience_bottle = ItemStack::new(ItemKind::ExperienceBottle, 1, None);
+    let eye_of_ender = ItemStack::new(ItemKind::EnderEye, 1, None);
+    let brick = ItemStack::new(ItemKind::Brick, 10, None);
+    let stone_bricks = ItemStack::new(ItemKind::StoneBricks, 4, None);
+    let chiseled_stone_bricks = ItemStack::new(ItemKind::ChiseledStoneBricks, 1, None);
+    let polished_andesite = ItemStack::new(ItemKind::PolishedAndesite, 4, None);
+    let quartz = ItemStack::new(ItemKind::Quartz, 5, None);
+    let quartz_block = ItemStack::new(ItemKind::QuartzBlock, 1, None);
+    let gravel = ItemStack::new(ItemKind::Gravel, 10, None);
+    let clay = ItemStack::new(ItemKind::Clay, 10, None);
+    let sand = ItemStack::new(ItemKind::Sand, 8, None);
+
+    trade_table.register_trades(
+        VillagerProfession::Farmer,
+        1,
+        vec![
+            TradeOffer::new(wheat.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), bread.clone()).with_max_uses(12),
+            TradeOffer::new(carrot, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), carrot.clone()).with_max_uses(12),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Farmer,
+        2,
+        vec![
+            TradeOffer::new(potato, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), apple.clone()).with_max_uses(4),
+            TradeOffer::new(beetroot, emerald.clone()).with_max_uses(16),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Farmer,
+        3,
+        vec![
+            TradeOffer::new(emerald.clone(), cookie.clone()).with_max_uses(12),
+            TradeOffer::new(emerald.clone(), cake.clone()).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Farmer,
+        4,
+        vec![
+            TradeOffer::new(emerald.clone(), golden_carrot).with_max_uses(3),
+            TradeOffer::new(emerald.clone(), glistering_melon).with_max_uses(3),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Farmer,
+        5,
+        vec![TradeOffer::new(emerald.clone(), experience_bottle).with_max_uses(1)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Armorer,
+        1,
+        vec![
+            TradeOffer::new(coal.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), iron_helmet).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Armorer,
+        2,
+        vec![
+            TradeOffer::new(iron_ingot.clone(), emerald.clone()).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), iron_chestplate).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Armorer,
+        3,
+        vec![
+            TradeOffer::new(emerald.clone(), iron_leggings).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), iron_boots).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Armorer,
+        4,
+        vec![
+            TradeOffer::new(diamond.clone(), emerald.clone()).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), diamond_chestplate).with_max_uses(1),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Armorer,
+        5,
+        vec![
+            TradeOffer::new(emerald.clone(), diamond_helmet).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), diamond_leggings).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), diamond_boots).with_max_uses(1),
+        ],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Weaponsmith,
+        1,
+        vec![
+            TradeOffer::new(coal.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), iron_axe).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Weaponsmith,
+        2,
+        vec![
+            TradeOffer::new(iron_ingot.clone(), emerald.clone()).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), iron_sword).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Weaponsmith,
+        3,
+        vec![TradeOffer::new(emerald.clone(), bell).with_max_uses(1)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Weaponsmith,
+        4,
+        vec![
+            TradeOffer::new(diamond.clone(), emerald.clone()).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), diamond_axe).with_max_uses(1),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Weaponsmith,
+        5,
+        vec![TradeOffer::new(emerald.clone(), diamond_sword).with_max_uses(1)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Toolsmith,
+        1,
+        vec![
+            TradeOffer::new(coal.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), iron_shovel).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Toolsmith,
+        2,
+        vec![
+            TradeOffer::new(iron_ingot.clone(), emerald.clone()).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), iron_pickaxe).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Toolsmith,
+        3,
+        vec![TradeOffer::new(emerald.clone(), bell).with_max_uses(1)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Toolsmith,
+        4,
+        vec![
+            TradeOffer::new(diamond.clone(), emerald.clone()).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), diamond_pickaxe).with_max_uses(1),
+        ],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Butcher,
+        1,
+        vec![
+            TradeOffer::new(rotten_flesh.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), rabbit_stew()).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Butcher,
+        2,
+        vec![
+            TradeOffer::new(coal.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), cooked_porkchop()).with_max_uses(8),
+        ],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Leatherworker,
+        1,
+        vec![
+            TradeOffer::new(leather.clone(), emerald.clone()).with_max_uses(8),
+            TradeOffer::new(emerald.clone(), leather_helmet).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Leatherworker,
+        2,
+        vec![TradeOffer::new(emerald.clone(), leather_chestplate).with_max_uses(4)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Leatherworker,
+        3,
+        vec![
+            TradeOffer::new(emerald.clone(), leather_leggings).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), saddle).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Leatherworker,
+        4,
+        vec![TradeOffer::new(emerald.clone(), leather_boots).with_max_uses(4)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Librarian,
+        1,
+        vec![
+            TradeOffer::new(paper, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), book.clone()).with_max_uses(12),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Librarian,
+        2,
+        vec![
+            TradeOffer::new(book.clone(), emerald.clone()).with_max_uses(8),
+            TradeOffer::new(emerald.clone(), lantern).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Librarian,
+        3,
+        vec![
+            TradeOffer::new(ink_sac, emerald.clone()).with_max_uses(8),
+            TradeOffer::new(emerald.clone(), glass.clone()).with_max_uses(8),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Librarian,
+        4,
+        vec![
+            TradeOffer::new(emerald.clone(), clock).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), experience_bottle).with_max_uses(1),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Librarian,
+        5,
+        vec![TradeOffer::new(emerald.clone(), name_tag).with_max_uses(1)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Cleric,
+        1,
+        vec![
+            TradeOffer::new(rotten_flesh.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), redstone).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Cleric,
+        2,
+        vec![
+            TradeOffer::new(gold_ingot(), emerald.clone()).with_max_uses(4),
+            TradeOffer::new(emerald.clone(), lapis_lazuli).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Cleric,
+        3,
+        vec![TradeOffer::new(emerald.clone(), eye_of_ender).with_max_uses(4)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Cleric,
+        4,
+        vec![TradeOffer::new(emerald.clone(), glowstone).with_max_uses(4)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Cleric,
+        5,
+        vec![TradeOffer::new(emerald.clone(), experience_bottle).with_max_uses(1)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Mason,
+        1,
+        vec![
+            TradeOffer::new(clay, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), brick).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Mason,
+        2,
+        vec![
+            TradeOffer::new(gravel, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), stone_bricks).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Mason,
+        3,
+        vec![
+            TradeOffer::new(sand, emerald.clone()).with_max_uses(8),
+            TradeOffer::new(emerald.clone(), polished_andesite).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Mason,
+        4,
+        vec![TradeOffer::new(emerald.clone(), chiseled_stone_bricks).with_max_uses(4)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Mason,
+        5,
+        vec![
+            TradeOffer::new(quartz, emerald.clone()).with_max_uses(8),
+            TradeOffer::new(emerald.clone(), quartz_block).with_max_uses(4),
+        ],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Fisherman,
+        1,
+        vec![TradeOffer::new(string, emerald.clone()).with_max_uses(16)],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Fisherman,
+        2,
+        vec![TradeOffer::new(emerald.clone(), bucket).with_max_uses(1)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Fletcher,
+        1,
+        vec![
+            TradeOffer::new(flint, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), arrow).with_max_uses(16),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Fletcher,
+        2,
+        vec![
+            TradeOffer::new(feather, emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), bow).with_max_uses(4),
+        ],
+    );
+    trade_table.register_trades(
+        VillagerProfession::Fletcher,
+        3,
+        vec![TradeOffer::new(emerald.clone(), crossbow).with_max_uses(4)],
+    );
+
+    trade_table.register_trades(
+        VillagerProfession::Shepherd,
+        1,
+        vec![
+            TradeOffer::new(wool(ItemKind::WhiteWool), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), wool(ItemKind::WhiteWool)).with_max_uses(16),
+        ],
+    );
+}
+
+fn rabbit_stew() -> ItemStack {
+    ItemStack::new(ItemKind::RabbitStew, 1, None)
+}
+
+fn cooked_porkchop() -> ItemStack {
+    ItemStack::new(ItemKind::CookedPorkchop, 5, None)
+}
+
+fn gold_ingot() -> ItemStack {
+    ItemStack::new(ItemKind::GoldIngot, 3, None)
+}
+
+fn wool(kind: ItemKind) -> ItemStack {
+    ItemStack::new(kind, 1, None)
+}
+
+fn villager_trade_levelup_system(
+    mut villager_query: Query<(Entity, &mut VillagerAi)>,
+    mut level_events: EventWriter<VillagerLeveledUp>,
+    trade_table: Res<TradeTable>,
+) {
+    for (entity, mut ai) in &mut villager_query {
+        if !ai.can_trade() {
+            continue;
+        }
+
+        let max = ai.max_level() as u8;
+        if ai.level >= max {
+            continue;
+        }
+
+        let xp_threshold = match ai.level {
+            1 => 10,
+            2 => 30,
+            3 => 70,
+            4 => 150,
+            _ => 250,
+        };
+
+        let trades = trade_table.get_trades(&ai.profession, ai.level as i32);
+        if let Some(trades) = trades {
+            let total_uses: u32 = trades.iter().map(|t| t.uses as u32).sum();
+            if total_uses >= xp_threshold as u32 {
+                let old = ai.level;
+                ai.level += 1;
+                level_events.send(VillagerLeveledUp {
+                    villager: entity,
+                    old_level: old,
+                    new_level: ai.level,
+                });
+            }
+        }
     }
 }

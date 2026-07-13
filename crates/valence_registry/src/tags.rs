@@ -1,8 +1,9 @@
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use tracing::warn;
+use tracing::{error, info};
 use valence_ident::Ident;
 use valence_protocol::encode::{PacketWriter, WritePacket};
 pub use valence_protocol::packets::play::synchronize_tags_s2c::RegistryMap;
@@ -41,7 +42,7 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
     let json: serde_json::Value = match serde_json::from_str(json_str) {
         Ok(v) => v,
         Err(e) => {
-            warn!("failed to parse tags.json: {e}");
+            error!("failed to parse tags.json: {e}");
             return;
         }
     };
@@ -49,7 +50,7 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
     let registries = match json.as_object() {
         Some(obj) => obj,
         None => {
-            warn!("tags.json is not a JSON object");
+            error!("tags.json is not a JSON object");
             return;
         }
     };
@@ -66,7 +67,7 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
             Err(_) => continue,
         };
 
-        let mut tag_map = std::collections::BTreeMap::new();
+        let mut tag_map = BTreeMap::new();
 
         for (tag_name, entries_value) in tags_obj {
             let Some(entries_arr) = entries_value.as_array() else {
@@ -78,29 +79,18 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
                 Err(_) => continue,
             };
 
-            let mut resolved: Vec<Ident<String>> = Vec::new();
+            let entries: Vec<Ident<String>> = entries_arr
+                .iter()
+                .filter_map(|entry| {
+                    let s = entry.as_str()?;
+                    let ident: Ident<String> = Ident::new(s.to_owned()).ok()?.into();
+                    Some(ident)
+                })
+                .collect();
 
-            for entry in entries_arr {
-                let Some(s) = entry.as_str() else {
-                    continue;
-                };
-                if let Some(ref_tag) = s.strip_prefix('#') {
-                    let ref_ident: Ident<String> = match Ident::new(ref_tag.to_owned()) {
-                        Ok(id) => id.into(),
-                        Err(_) => continue,
-                    };
-                    if let Some(ref_entries) = tag_map.get(&ref_ident) {
-                        resolved.extend(ref_entries.iter().cloned());
-                    }
-                } else {
-                    match Ident::new(s.to_owned()) {
-                        Ok(id) => resolved.push(id.into()),
-                        Err(_) => continue,
-                    }
-                }
+            if !entries.is_empty() {
+                tag_map.insert(tag_ident, entries);
             }
-
-            tag_map.insert(tag_ident, resolved);
         }
 
         if !tag_map.is_empty() {
@@ -108,7 +98,7 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
         }
     }
 
-    tracing::info!("loaded {} tag registries for play phase", result.len());
+    info!("loaded {} tag registries for play phase", result.len());
     tags.registries = result;
 }
 

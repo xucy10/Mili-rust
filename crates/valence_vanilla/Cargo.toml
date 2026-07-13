@@ -21,3 +21,4 @@ bevy_ecs.workspace = true
 bevy_app.workspace = true
 bevy_time.workspace = true
 rand.workspace = true
+noise.workspace = true

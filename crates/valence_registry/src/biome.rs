@@ -161,7 +161,13 @@ impl<'de> Deserialize<'de> for Biome {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct BiomeEffects {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fog_color: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sky_color: Option<u32>,
     pub water_color: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub water_fog_color: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grass_color: Option<u32>,
 }
@@ -234,13 +240,13 @@ impl<'de> Deserialize<'de> for BiomeEffects {
         #[allow(dead_code)]
         struct BiomeEffectsHelper {
             #[serde(default, deserialize_with = "parse_color_opt")]
-            fog_color: Option<serde_json::Value>,
+            fog_color: Option<u32>,
             #[serde(default, deserialize_with = "parse_color_opt")]
-            sky_color: Option<serde_json::Value>,
+            sky_color: Option<u32>,
             #[serde(deserialize_with = "parse_color")]
             water_color: u32,
             #[serde(default, deserialize_with = "parse_color_opt")]
-            water_fog_color: Option<serde_json::Value>,
+            water_fog_color: Option<u32>,
             #[serde(default, deserialize_with = "parse_color_opt")]
             grass_color: Option<u32>,
             #[serde(default)]
@@ -265,7 +271,10 @@ impl<'de> Deserialize<'de> for BiomeEffects {
 
         let h = BiomeEffectsHelper::deserialize(deserializer)?;
         Ok(BiomeEffects {
+            fog_color: h.fog_color,
+            sky_color: h.sky_color,
             water_color: h.water_color,
+            water_fog_color: h.water_fog_color,
             grass_color: h.grass_color,
         })
     }
@@ -341,7 +350,10 @@ impl Default for Biome {
 impl Default for BiomeEffects {
     fn default() -> Self {
         Self {
+            fog_color: None,
+            sky_color: None,
             water_color: 4159204,
+            water_fog_color: None,
             grass_color: None,
         }
     }
