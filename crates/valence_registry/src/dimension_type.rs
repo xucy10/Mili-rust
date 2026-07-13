@@ -34,9 +34,8 @@ pub struct DimensionType {
 
 impl<'de> Deserialize<'de> for DimensionType {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de;
-
         #[derive(Deserialize)]
+        #[allow(dead_code)]
         struct DimensionTypeHelper {
             #[serde(default)]
             ambient_light: f32,

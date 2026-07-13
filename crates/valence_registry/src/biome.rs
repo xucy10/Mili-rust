@@ -121,6 +121,7 @@ pub struct Biome {
 impl<'de> Deserialize<'de> for Biome {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
+        #[allow(dead_code)]
         struct BiomeHelper {
             #[serde(default)]
             downfall: f32,
@@ -230,9 +231,10 @@ fn parse_hex_color(s: &str) -> Result<u32, String> {
     }
 }
 
-impl<'de> Deserialize<'de> for BiomeEffects {
+    impl<'de> Deserialize<'de> for BiomeEffects {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
+        #[allow(dead_code)]
         struct BiomeEffectsHelper {
             #[serde(deserialize_with = "parse_color")]
             fog_color: u32,
