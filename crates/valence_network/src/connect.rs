@@ -144,11 +144,18 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
                         let tag_ident: Ident<String> = Ident::new(tag_name.clone())
                             .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
                             .into();
-                        let entries: Vec<VarInt> = entries_value
+                        let entries: Vec<Ident<String>> = entries_value
                             .as_array()
                             .map(|arr| {
                                 arr.iter()
-                                    .filter_map(|v| v.as_i64().map(|id| VarInt(id as i32)))
+                                    .filter_map(|v| {
+                                        let s = v.as_str()?;
+                                        if s.starts_with('#') {
+                                            None
+                                        } else {
+                                            Ident::new(s.to_owned()).ok().map(Into::into)
+                                        }
+                                    })
                                     .collect()
                             })
                             .unwrap_or_default();
