@@ -231,7 +231,7 @@ fn parse_hex_color(s: &str) -> Result<u32, String> {
     }
 }
 
-    impl<'de> Deserialize<'de> for BiomeEffects {
+impl<'de> Deserialize<'de> for BiomeEffects {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         #[allow(dead_code)]
