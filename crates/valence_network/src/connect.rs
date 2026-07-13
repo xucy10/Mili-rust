@@ -29,13 +29,13 @@ use valence_protocol::Encode;
 use valence_protocol::Ident;
 use valence_server::client::Properties;
 use valence_server::protocol::packets::configuration::config_registry_data_s2c::RegistryEntry;
+use valence_server::protocol::packets::configuration::config_update_tags_s2c::ConfigRegistryMap;
 use valence_server::protocol::packets::configuration::{
     ConfigClientInformationC2s, ConfigCustomPayloadC2s, ConfigCustomPayloadS2c,
     ConfigFinishConfigurationC2s, ConfigFinishConfigurationS2c, ConfigRegistryDataS2c,
     ConfigSelectKnownPacksC2s, ConfigSelectKnownPacksS2c, ConfigUpdateEnabledFeaturesS2c,
     ConfigUpdateTagsS2c,
 };
-use valence_server::protocol::packets::configuration::config_update_tags_s2c::ConfigRegistryMap;
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
 use valence_server::protocol::packets::login::{
@@ -127,8 +127,8 @@ fn get_tags_data() -> ConfigRegistryMap {
     static TAGS_DATA: OnceLock<ConfigRegistryMap> = OnceLock::new();
     TAGS_DATA.get_or_init(|| {
         let json_str = include_str!("../../valence_registry/extracted/tags.json");
-        let json: serde_json::Value = serde_json::from_str(json_str)
-            .expect("failed to parse tags.json");
+        let json: serde_json::Value =
+            serde_json::from_str(json_str).expect("failed to parse tags.json");
 
         let mut result = ConfigRegistryMap::new();
 

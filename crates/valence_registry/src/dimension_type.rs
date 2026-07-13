@@ -91,11 +91,21 @@ impl<'de> Deserialize<'de> for DimensionType {
             attributes: Option<serde_json::Value>,
         }
 
-        fn default_coordinate_scale() -> f64 { 1.0 }
-        fn default_height() -> i32 { 384 }
-        fn default_min_y() -> i32 { -64 }
-        fn default_infiniburn() -> String { "#minecraft:infiniburn_overworld".into() }
-        fn default_monster_spawn() -> MonsterSpawnLightLevel { MonsterSpawnLightLevel::Int(7) }
+        fn default_coordinate_scale() -> f64 {
+            1.0
+        }
+        fn default_height() -> i32 {
+            384
+        }
+        fn default_min_y() -> i32 {
+            -64
+        }
+        fn default_infiniburn() -> String {
+            "#minecraft:infiniburn_overworld".into()
+        }
+        fn default_monster_spawn() -> MonsterSpawnLightLevel {
+            MonsterSpawnLightLevel::Int(7)
+        }
 
         let h = DimensionTypeHelper::deserialize(deserializer)?;
 

@@ -141,8 +141,12 @@ impl<'de> Deserialize<'de> for Biome {
             spawn_costs: Option<serde_json::Value>,
         }
 
-        fn default_has_precipitation() -> bool { true }
-        fn default_temperature() -> f32 { 0.8 }
+        fn default_has_precipitation() -> bool {
+            true
+        }
+        fn default_temperature() -> f32 {
+            0.8
+        }
 
         let h = BiomeHelper::deserialize(deserializer)?;
         Ok(Biome {
