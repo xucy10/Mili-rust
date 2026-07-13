@@ -232,7 +232,7 @@ pub enum MonsterSpawnLightLevel {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value")]
+#[serde(tag = "type")]
 pub enum MonsterSpawnLightLevelTagged {
     #[serde(rename = "minecraft:uniform")]
     Uniform {
