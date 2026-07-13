@@ -142,9 +142,7 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
                 if let Some(tags_obj) = tags_value.as_object() {
                     for (tag_name, entries_value) in tags_obj {
                         let tag_ident: Ident<String> = Ident::new(tag_name.clone())
-                            .unwrap_or_else(|_| {
-                                Ident::new("minecraft:unknown".to_owned()).unwrap()
-                            })
+                            .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
                             .into();
                         let entries: Vec<VarInt> = entries_value
                             .as_array()
