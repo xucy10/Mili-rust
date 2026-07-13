@@ -35,6 +35,7 @@ use valence_server::protocol::packets::configuration::{
     ConfigSelectKnownPacksC2s, ConfigSelectKnownPacksS2c, ConfigUpdateEnabledFeaturesS2c,
     ConfigUpdateTagsS2c,
 };
+use valence_server::protocol::packets::configuration::config_update_tags_s2c::ConfigRegistryMap;
 use valence_server::protocol::packets::handshaking::handshake_c2s::HandshakeNextState;
 use valence_server::protocol::packets::handshaking::HandshakeC2s;
 use valence_server::protocol::packets::login::{
@@ -122,6 +123,48 @@ async fn send_registry_data(io: &mut PacketIo) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn get_tags_data() -> ConfigRegistryMap {
+    static TAGS_DATA: OnceLock<ConfigRegistryMap> = OnceLock::new();
+    TAGS_DATA.get_or_init(|| {
+        let json_str = include_str!("../../valence_registry/extracted/tags.json");
+        let json: serde_json::Value = serde_json::from_str(json_str)
+            .expect("failed to parse tags.json");
+
+        let mut result = ConfigRegistryMap::new();
+
+        if let Some(registries) = json.as_object() {
+            for (registry_name, tags_value) in registries {
+                let reg_ident: Ident<String> = Ident::new(registry_name)
+                    .unwrap_or_else(|_| Ident::new("minecraft:unknown").unwrap());
+                let mut tag_map = BTreeMap::new();
+
+                if let Some(tags_obj) = tags_value.as_object() {
+                    for (tag_name, entries_value) in tags_obj {
+                        let tag_ident: Ident<String> = Ident::new(tag_name)
+                            .unwrap_or_else(|_| Ident::new("minecraft:unknown").unwrap());
+                        let entries: Vec<VarInt> = entries_value
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_i64().map(|id| VarInt(id as i32)))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        tag_map.insert(tag_ident, entries);
+                    }
+                }
+
+                if !tag_map.is_empty() {
+                    result.insert(reg_ident, tag_map);
+                }
+            }
+        }
+
+        info!("loaded {} tag registries", result.len());
+        result
+    })
+}
+
 async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
     // 1. Receive client information
     //    The client may send Plugin Messages (e.g. minecraft:brand) before Client Information.
@@ -161,10 +204,10 @@ async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
     // 4. Send registry data
     send_registry_data(io).await?;
 
-    // 5. Send tags (empty for now - the client can work without them)
-    // TODO: send actual tags data
+    // 5. Send tags (damage_type tags required for Finish Configuration)
+    let tags = get_tags_data();
     io.send_packet(&ConfigUpdateTagsS2c {
-        groups: Cow::Borrowed(&BTreeMap::new()),
+        groups: Cow::Borrowed(tags),
     })
     .await?;
 
