@@ -135,7 +135,8 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
         if let Some(registries) = json.as_object() {
             for (registry_name, tags_value) in registries {
                 let reg_ident: Ident<String> = Ident::new(registry_name.to_string())
-                    .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_string()).unwrap());
+                    .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_string()).unwrap())
+                    .into();
                 let mut tag_map = BTreeMap::new();
 
                 if let Some(tags_obj) = tags_value.as_object() {
@@ -143,7 +144,8 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
                         let tag_ident: Ident<String> = Ident::new(tag_name.to_string())
                             .unwrap_or_else(|_| {
                                 Ident::new("minecraft:unknown".to_string()).unwrap()
-                            });
+                            })
+                            .into();
                         let entries: Vec<VarInt> = entries_value
                             .as_array()
                             .map(|arr| {
