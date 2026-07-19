@@ -20,4 +20,6 @@ pub enum GameEventKind {
     PlayPufferfishStingSound,
     PlayElderGuardianMobAppearance,
     EnableRespawnScreen,
+    LimitedCrafting,
+    StartWaitingForLevelChunks,
 }

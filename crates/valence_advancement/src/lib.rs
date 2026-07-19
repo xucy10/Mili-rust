@@ -419,7 +419,7 @@ impl Default for AdvancementClientUpdate {
             remove_advancements: vec![],
             progress: vec![],
             force_tab_update: ForceTabUpdate::default(),
-            reset: true,
+            reset: false,
         }
     }
 }

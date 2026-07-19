@@ -8,8 +8,13 @@ pub struct CraftingPlugin;
 impl Plugin for CraftingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CraftingRegistry>()
+            .add_systems(PreStartup, init_vanilla_recipes)
             .add_systems(Update, process_crafting);
     }
+}
+
+fn init_vanilla_recipes(mut registry: ResMut<CraftingRegistry>) {
+    register_vanilla_recipes(&mut registry);
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -532,4 +537,27 @@ pub fn register_vanilla_recipes(registry: &mut CraftingRegistry) {
     ));
 }
 
-fn process_crafting(_registry: Res<CraftingRegistry>, _inventories: Query<&mut Inventory>) {}
+#[derive(Component)]
+pub struct CraftingOutput {
+    pub result: Option<ItemStack>,
+}
+
+impl Default for CraftingOutput {
+    fn default() -> Self {
+        Self { result: None }
+    }
+}
+
+fn process_crafting(
+    registry: Res<CraftingRegistry>,
+    mut query: Query<(&Inventory, &mut CraftingOutput), Changed<Inventory>>,
+) {
+    for (inventory, mut output) in &mut query {
+        let input = CraftingInput::from_inventory(inventory, 1);
+        if let Some(recipe) = registry.find_match(&input) {
+            output.result = Some(recipe.result.clone());
+        } else {
+            output.result = None;
+        }
+    }
+}

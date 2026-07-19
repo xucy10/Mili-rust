@@ -6,6 +6,11 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_time::{Time, Timer, TimerMode};
 use tracing::{error, info};
+use valence_anvil::{RegionFolder, WriteOptions};
+use valence_nbt::{Compound, List, Value};
+use valence_protocol::BlockState;
+use valence_registry::biome::BiomeId;
+use valence_server::layer::chunk::Chunk;
 use valence_server::ChunkLayer;
 
 use crate::level_dat::{LevelDat, LevelDatError};
@@ -200,7 +205,7 @@ pub fn shutdown_save_system(
 /// Performs the actual save operation.
 fn perform_save(
     save_manager: &mut WorldSaveManager,
-    _layers: &Query<&ChunkLayer>,
+    layers: &Query<&ChunkLayer>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     save_manager.begin_save();
 
@@ -213,11 +218,27 @@ fn perform_save(
     // Save level.dat
     save_manager.save_level_dat()?;
 
-    // Save dirty chunks using the Anvil format
-    let dirty: Vec<_> = save_manager.dirty_chunks().iter().copied().collect();
+    // Save chunks using the Anvil format
+    for layer in layers {
+        let mut region_folder = RegionFolder::new(&region_dir);
+        region_folder.write_options = WriteOptions::default();
+                region_folder.write_options.compression = valence_anvil::Compression::Zlib;
 
-    for (chunk_x, chunk_z) in &dirty {
-        info!("Saving chunk ({}, {})", chunk_x, chunk_z);
+        for (chunk_pos, chunk) in layer.chunks() {
+            let chunk_x = chunk_pos.x;
+            let chunk_z = chunk_pos.z;
+
+            let nbt = chunk_to_anvil_compound(chunk, chunk_x, chunk_z, layer.min_y(), layer.height());
+            match nbt {
+                Ok(compound) => {
+                    region_folder.set_chunk(chunk_x, chunk_z, &compound)?;
+                    info!("Saved chunk ({}, {})", chunk_x, chunk_z);
+                }
+                Err(e) => {
+                    error!("Failed to serialize chunk ({}, {}): {}", chunk_x, chunk_z, e);
+                }
+            }
+        }
     }
 
     save_manager.clear_dirty();
@@ -296,4 +317,163 @@ mod tests {
         manager.set_auto_save_interval(60);
         assert_eq!(manager.auto_save_interval_secs, 60);
     }
+}
+
+/// Converts a chunk to the Anvil NBT compound format.
+fn chunk_to_anvil_compound(
+    chunk: &valence_server::layer::chunk::LoadedChunk,
+    chunk_x: i32,
+    chunk_z: i32,
+    min_y: i32,
+    height: u32,
+) -> Result<Compound, String> {
+    let mut root = Compound::new();
+
+    root.insert("DataVersion".to_owned(), Value::Int(3715));
+    root.insert("xPos".to_owned(), Value::Int(chunk_x));
+    root.insert("zPos".to_owned(), Value::Int(chunk_z));
+    root.insert("yPos".to_owned(), Value::Int(min_y / 16));
+    root.insert("Status".to_owned(), Value::String("full".to_owned()));
+
+    let section_count = height / 16;
+    let mut sections: Vec<Compound> = Vec::new();
+
+    for sect_y in 0..section_count {
+        let mut section_compound = Compound::new();
+        let byte_y = (sect_y as i32 + (min_y / 16)) as i8;
+        section_compound.insert("Y".to_owned(), Value::Byte(byte_y));
+
+        // Block states
+        let mut block_palette: Vec<BlockState> = Vec::new();
+        let mut block_indices = Vec::with_capacity(4096);
+
+        for y in 0..16u32 {
+            for z in 0..16u32 {
+                for x in 0..16u32 {
+                    let state = chunk.block_state(x, sect_y * 16 + y, z);
+                    let idx = match block_palette.iter().position(|s| *s == state) {
+                        Some(i) => i,
+                        None => {
+                            let i = block_palette.len();
+                            block_palette.push(state);
+                            i
+                        }
+                    };
+                    block_indices.push(idx as u64);
+                }
+            }
+        }
+
+        let block_palette_nbt: Vec<Compound> = block_palette
+            .iter()
+            .map(|state| {
+                let mut block = Compound::new();
+                let name = state.to_string();
+                block.insert("Name".to_owned(), Value::String(name));
+                block
+            })
+            .collect();
+
+        let mut block_states = Compound::new();
+        block_states.insert(
+            "palette".to_owned(),
+            Value::List(List::Compound(block_palette_nbt)),
+        );
+
+        if block_palette.len() > 1 {
+            let bit_width = std::cmp::max(1, ceil_log2(block_palette.len() as u64));
+            let packed = pack_indices(&block_indices, bit_width);
+            block_states.insert("data".to_owned(), Value::LongArray(packed));
+        }
+
+        section_compound.insert(
+            "block_states".to_owned(),
+            Value::Compound(block_states),
+        );
+
+        // Biomes
+        let mut biome_palette: Vec<BiomeId> = Vec::new();
+        let mut biome_indices = Vec::with_capacity(64);
+
+        for y in 0..4u32 {
+            for z in 0..4u32 {
+                for x in 0..4u32 {
+                    let biome = chunk.biome(x, sect_y * 4 + y, z);
+                    let idx = match biome_palette.iter().position(|b| *b == biome) {
+                        Some(i) => i,
+                        None => {
+                            let i = biome_palette.len();
+                            biome_palette.push(biome);
+                            i
+                        }
+                    };
+                    biome_indices.push(idx as u64);
+                }
+            }
+        }
+
+        let biome_palette_nbt: Vec<String> = biome_palette
+            .iter()
+            .map(|_b| "minecraft:plains".to_owned())
+            .collect();
+
+        let mut biomes = Compound::new();
+        biomes.insert(
+            "palette".to_owned(),
+            Value::List(List::String(biome_palette_nbt)),
+        );
+
+        if biome_palette.len() > 1 {
+            let bit_width = std::cmp::max(1, ceil_log2(biome_palette.len() as u64));
+            let packed = pack_indices(&biome_indices, bit_width);
+            biomes.insert("data".to_owned(), Value::LongArray(packed));
+        }
+
+        section_compound.insert("biomes".to_owned(), Value::Compound(biomes));
+
+        sections.push(section_compound);
+    }
+
+    root.insert(
+        "sections".to_owned(),
+        Value::List(List::Compound(sections)),
+    );
+
+    // Heightmaps (empty for now)
+    let heightmaps = Compound::new();
+    root.insert("Heightmaps".to_owned(), Value::Compound(heightmaps));
+
+    // Block entities (empty list)
+    let block_entities_list: Vec<Compound> = Vec::new();
+    root.insert(
+        "block_entities".to_owned(),
+        Value::List(List::Compound(block_entities_list)),
+    );
+
+    Ok(root)
+}
+
+/// Packs indices into a long array using the given bit width.
+fn pack_indices(indices: &[u64], bit_width: u32) -> Vec<i64> {
+    let values_per_long = 64 / bit_width;
+    let mask = (1u64 << bit_width) - 1;
+    let num_longs = indices.len().div_ceil(values_per_long as usize);
+
+    let mut packed = vec![0i64; num_longs];
+
+    for (i, &idx) in indices.iter().enumerate() {
+        let long_idx = i / values_per_long as usize;
+        let bit_offset = (i % values_per_long as usize) as u32 * bit_width;
+        packed[long_idx] |= ((idx & mask) as i64) << bit_offset;
+    }
+
+    packed
+}
+
+/// Computes ceil(log2(n)).
+fn ceil_log2(n: u64) -> u32 {
+    if n <= 1 {
+        return 1;
+    }
+    64 - (n - 1).leading_zeros()
 }

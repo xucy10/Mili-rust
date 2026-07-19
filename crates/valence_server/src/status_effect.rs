@@ -58,7 +58,7 @@ fn update_active_status_effects(
 
 fn create_packet(effect: &ActiveStatusEffect) -> EntityStatusEffectS2c {
     EntityStatusEffectS2c {
-        entity_id: VarInt(0), // We reserve ID 0 for clients.
+        entity_id: VarInt(1),
         effect_id: VarInt(i32::from(effect.status_effect().to_raw())),
         amplifier: effect.amplifier(),
         duration: VarInt(effect.remaining_duration().unwrap_or(-1)),

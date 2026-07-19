@@ -3,7 +3,7 @@ use bevy_ecs::prelude::*;
 use rand::Rng;
 use valence_entity::Position;
 use valence_math::DVec3;
-use valence_server::Client;
+use valence_server::client::Client;
 
 use crate::combat::{AttackCooldown, CombatStats, Health};
 use crate::entity_ai::memory::EntityMemory;

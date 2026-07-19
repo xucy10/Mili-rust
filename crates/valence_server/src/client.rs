@@ -365,7 +365,7 @@ impl Client {
     /// `velocity` is in m/s.
     pub fn set_velocity<V: Into<Vec3>>(&mut self, velocity: V) {
         self.write_packet(&EntityVelocityUpdateS2c {
-            entity_id: VarInt(0),
+            entity_id: VarInt(1),
             velocity: Velocity(velocity.into()).to_packet_units(),
         });
     }
@@ -375,7 +375,7 @@ impl Client {
     /// The status is only visible to this client.
     pub fn trigger_status(&mut self, status: EntityStatus) {
         self.write_packet(&EntityStatusS2c {
-            entity_id: 0,
+            entity_id: 1,
             entity_status: status as u8,
         });
     }
@@ -957,7 +957,7 @@ pub(crate) fn update_view_and_layers(
 
             // Make sure the center chunk is set before loading chunks! Otherwise the client
             // may ignore the chunk.
-            if old_view.pos != view.pos {
+            if old_view.pos != view.pos || old_chunk_layer.0 != chunk_layer.0 {
                 client.write_packet(&ChunkRenderDistanceCenterS2c {
                     chunk_x: VarInt(view.pos.x),
                     chunk_z: VarInt(view.pos.z),
@@ -1245,7 +1245,7 @@ fn init_tracked_data(mut clients: Query<(&mut Client, &TrackedData), Added<Track
     for (mut client, tracked_data) in &mut clients {
         if let Some(init_data) = tracked_data.init_data() {
             client.write_packet(&EntityTrackerUpdateS2c {
-                entity_id: VarInt(0),
+                entity_id: VarInt(1),
                 tracked_values: init_data.into(),
             });
         }
@@ -1256,7 +1256,7 @@ fn update_tracked_data(mut clients: Query<(&mut Client, &TrackedData)>) {
     for (mut client, tracked_data) in &mut clients {
         if let Some(update_data) = tracked_data.update_data() {
             client.write_packet(&EntityTrackerUpdateS2c {
-                entity_id: VarInt(0),
+                entity_id: VarInt(1),
                 tracked_values: update_data.into(),
             });
         }
@@ -1266,23 +1266,16 @@ fn update_tracked_data(mut clients: Query<(&mut Client, &TrackedData)>) {
 fn init_tracked_attributes(
     mut clients: Query<(&mut Client, &EntityAttributes), Added<EntityAttributes>>,
 ) {
-    for (mut client, attributes) in &mut clients {
-        client.write_packet(&EntityAttributesS2c {
-            entity_id: VarInt(0),
-            properties: attributes.to_properties(),
-        });
+    for (_client, _attributes) in &mut clients {
+        // 26.2 protocol: Attribute IDs are now VarInt registry references, not string identifiers.
+        // TODO: Map attribute names to registry IDs and send properly.
     }
 }
 
 fn update_tracked_attributes(mut clients: Query<(&mut Client, &TrackedEntityAttributes)>) {
-    for (mut client, attributes) in &mut clients {
-        let properties = attributes.get_properties();
-        if !properties.is_empty() {
-            client.write_packet(&EntityAttributesS2c {
-                entity_id: VarInt(0),
-                properties,
-            });
-        }
+    for (_client, _attributes) in &mut clients {
+        // 26.2 protocol: Attribute IDs are now VarInt registry references, not string identifiers.
+        // TODO: Map attribute names to registry IDs and send properly.
     }
 }
 

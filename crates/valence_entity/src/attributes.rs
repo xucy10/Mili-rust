@@ -155,8 +155,15 @@ impl EntityAttributeInstance {
     /// Converts to a `TrackedEntityProperty` for use in the
     /// `EntityAttributesS2c` packet.
     pub(crate) fn to_property(&self) -> TrackedEntityProperty {
+        let attr_name = self.attribute.name();
+        let key = if attr_name.starts_with("minecraft:") {
+            attr_name.to_string()
+        } else {
+            format!("minecraft:{}", attr_name)
+        };
+
         TrackedEntityProperty {
-            key: self.attribute.name().into(),
+            key,
             value: self.base_value(),
             modifiers: self
                 .add_modifiers
@@ -388,8 +395,14 @@ pub(crate) struct TrackedAttributeModifier {
 impl TrackedEntityProperty {
     /// Converts to an [`AttributeProperty`]s.
     fn to_property(&self) -> AttributeProperty<'static> {
+        let key = if self.key.starts_with("minecraft:") {
+            self.key.clone()
+        } else {
+            format!("minecraft:{}", self.key)
+        };
+
         AttributeProperty {
-            key: Ident::new(self.key.clone()).unwrap(),
+            key: Ident::new(key).unwrap(),
             value: self.value,
             modifiers: self
                 .modifiers

@@ -8,6 +8,7 @@ use valence_ident::Ident;
 use valence_protocol::encode::{PacketWriter, WritePacket};
 pub use valence_protocol::packets::play::synchronize_tags_s2c::RegistryMap;
 use valence_protocol::packets::play::SynchronizeTagsS2c;
+use valence_protocol::VarInt;
 use valence_server_common::Server;
 
 use crate::RegistrySet;
@@ -38,8 +39,8 @@ impl TagsRegistry {
 }
 
 fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
-    let json_str = include_str!("../extracted/tags.json");
-    let json: serde_json::Value = match serde_json::from_str(json_str) {
+    let tags_str = include_str!("../extracted/tags.json");
+    let tags_json: serde_json::Value = match serde_json::from_str(tags_str) {
         Ok(v) => v,
         Err(e) => {
             error!("failed to parse tags.json: {e}");
@@ -47,7 +48,33 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
         }
     };
 
-    let registries = match json.as_object() {
+    let registries_str = include_str!("../extracted/registries.json");
+    let registries_json: serde_json::Value = match serde_json::from_str(registries_str) {
+        Ok(v) => v,
+        Err(e) => {
+            error!("failed to parse registries.json: {e}");
+            return;
+        }
+    };
+
+    let mut registry_id_map: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
+        std::collections::HashMap::new();
+
+    if let Some(regs) = registries_json.as_object() {
+        for (reg_name, reg_value) in regs {
+            let mut id_map = std::collections::HashMap::new();
+            if let Some(entries) = reg_value.get("entries").and_then(|e| e.as_object()) {
+                for (entry_name, entry_value) in entries {
+                    if let Some(protocol_id) = entry_value.get("protocol_id").and_then(|v| v.as_i64()) {
+                        id_map.insert(entry_name.clone(), protocol_id as i32);
+                    }
+                }
+            }
+            registry_id_map.insert(reg_name.clone(), id_map);
+        }
+    }
+
+    let tags_registries = match tags_json.as_object() {
         Some(obj) => obj,
         None => {
             error!("tags.json is not a JSON object");
@@ -57,15 +84,23 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
 
     let mut result = RegistryMap::new();
 
-    for (registry_name, tags_value) in registries {
+    for (registry_name, tags_value) in tags_registries {
         let Some(tags_obj) = tags_value.as_object() else {
             continue;
         };
 
-        let reg_ident: Ident<String> = match Ident::new(registry_name.clone()) {
+        let full_reg_name = if registry_name.contains(':') {
+            registry_name.clone()
+        } else {
+            format!("minecraft:{registry_name}")
+        };
+
+        let reg_ident: Ident<String> = match Ident::new(full_reg_name.clone()) {
             Ok(id) => id.into(),
             Err(_) => continue,
         };
+
+        let id_map = registry_id_map.get(&full_reg_name);
 
         let mut tag_map = BTreeMap::new();
 
@@ -79,12 +114,16 @@ fn init_tags_registry(mut tags: ResMut<TagsRegistry>) {
                 Err(_) => continue,
             };
 
-            let entries: Vec<Ident<String>> = entries_arr
+            let entries: Vec<VarInt> = entries_arr
                 .iter()
                 .filter_map(|entry| {
                     let s = entry.as_str()?;
-                    let ident: Ident<String> = Ident::new(s.to_owned()).ok()?.into();
-                    Some(ident)
+                    let entry_name = s.strip_prefix('#').unwrap_or(s);
+                    if let Some(map) = id_map {
+                        map.get(entry_name).map(|&id| VarInt(id))
+                    } else {
+                        None
+                    }
                 })
                 .collect();
 

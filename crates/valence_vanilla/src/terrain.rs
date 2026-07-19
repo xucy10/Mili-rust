@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use noise::{Fbm, MultiFractal, NoiseFn, Perlin, SuperSimplex};
+use noise::{Fbm, NoiseFn, Perlin, SuperSimplex};
 use rand::Rng;
-use valence_generated::block::{BlockKind, BlockState};
-use valence_ident::Ident;
-use valence_protocol::BlockPos;
-use valence_server::layer::chunk::{ChunkLayer, UnloadedChunk};
-use valence_server::{BiomeRegistry, DimensionTypeRegistry, Server};
+use valence_generated::block::BlockState;
+use valence_protocol::{BlockPos, Ident};
+use valence_server::layer::chunk::{Chunk, ChunkLayer, UnloadedChunk};
 
 pub struct TerrainPlugin;
 
@@ -42,9 +37,9 @@ pub enum Dimension {
 impl Dimension {
     pub fn dimension_type_name(&self) -> Ident<String> {
         match self {
-            Dimension::Overworld => Ident::new("minecraft:overworld").unwrap().into(),
-            Dimension::Nether => Ident::new("minecraft:the_nether").unwrap().into(),
-            Dimension::End => Ident::new("minecraft:the_end").unwrap().into(),
+            Dimension::Overworld => Ident::new("minecraft:overworld").unwrap().to_string_ident(),
+            Dimension::Nether => Ident::new("minecraft:the_nether").unwrap().to_string_ident(),
+            Dimension::End => Ident::new("minecraft:the_end").unwrap().to_string_ident(),
         }
     }
 
@@ -70,31 +65,31 @@ pub struct TerrainGenerator {
 
 impl TerrainGenerator {
     pub fn new(dimension: Dimension, seed: u32) -> Self {
-        let height_noise = Fbm::<SuperSimplex>::new(seed)
-            .with_octaves(6)
-            .with_frequency(0.005)
-            .with_lacunarity(2.0)
-            .with_persistence(0.5);
+        let mut height_noise = Fbm::<SuperSimplex>::new(seed);
+        height_noise.octaves = 6;
+        height_noise.frequency = 0.005;
+        height_noise.lacunarity = 2.0;
+        height_noise.persistence = 0.5;
 
-        let detail_noise = Fbm::<SuperSimplex>::new(seed.wrapping_add(1))
-            .with_octaves(4)
-            .with_frequency(0.02)
-            .with_lacunarity(2.0)
-            .with_persistence(0.5);
+        let mut detail_noise = Fbm::<SuperSimplex>::new(seed.wrapping_add(1));
+        detail_noise.octaves = 4;
+        detail_noise.frequency = 0.02;
+        detail_noise.lacunarity = 2.0;
+        detail_noise.persistence = 0.5;
 
-        let cave_noise = Fbm::<SuperSimplex>::new(seed.wrapping_add(2))
-            .with_octaves(3)
-            .with_frequency(0.03)
-            .with_lacunarity(2.0)
-            .with_persistence(0.5);
+        let mut cave_noise = Fbm::<SuperSimplex>::new(seed.wrapping_add(2));
+        cave_noise.octaves = 3;
+        cave_noise.frequency = 0.03;
+        cave_noise.lacunarity = 2.0;
+        cave_noise.persistence = 0.5;
 
         let biome_noise = SuperSimplex::new(seed.wrapping_add(3));
 
-        let ore_noise = Fbm::<Perlin>::new(seed.wrapping_add(4))
-            .with_octaves(2)
-            .with_frequency(0.1)
-            .with_lacunarity(2.0)
-            .with_persistence(0.5);
+        let mut ore_noise = Fbm::<Perlin>::new(seed.wrapping_add(4));
+        ore_noise.octaves = 2;
+        ore_noise.frequency = 0.1;
+        ore_noise.lacunarity = 2.0;
+        ore_noise.persistence = 0.5;
 
         Self {
             dimension,
@@ -116,7 +111,7 @@ impl TerrainGenerator {
     }
 
     fn generate_overworld_chunk(&self, chunk_x: i32, chunk_z: i32) -> UnloadedChunk {
-        let mut chunk = UnloadedChunk::new();
+        let mut chunk = UnloadedChunk::with_height(384);
 
         let base_x = chunk_x * 16;
         let base_z = chunk_z * 16;
@@ -129,41 +124,42 @@ impl TerrainGenerator {
                 let height = self.overworld_height(world_x, world_z);
                 let biome = self.overworld_biome(world_x, world_z);
 
-                for y in -64..=height {
-                    let block = if y == height {
+                for world_y in -64..=height {
+                    let chunk_y = (world_y + 64) as u32;
+                    let block = if world_y == height {
                         match biome {
                             OverworldBiome::Desert => BlockState::SAND,
                             OverworldBiome::Beach => BlockState::SAND,
                             OverworldBiome::Ocean => BlockState::SAND,
                             _ => BlockState::GRASS_BLOCK,
                         }
-                    } else if y >= height - 3 {
+                    } else if world_y >= height - 3 {
                         match biome {
                             OverworldBiome::Desert => BlockState::SAND,
                             OverworldBiome::Beach => BlockState::SAND,
                             _ => BlockState::DIRT,
                         }
-                    } else if y >= -64 && y < -60 {
+                    } else if world_y >= -64 && world_y < -60 {
                         BlockState::BEDROCK
                     } else {
                         let cave = self.cave_noise.get([
                             world_x as f64 * 0.05,
-                            y as f64 * 0.05,
+                            world_y as f64 * 0.05,
                             world_z as f64 * 0.05,
                         ]);
-                        if cave > 0.5 && y > -60 && y < height - 5 {
+                        if cave > 0.5 && world_y > -60 && world_y < height - 5 {
                             BlockState::AIR
                         } else {
                             let ore = self.ore_noise.get([
                                 world_x as f64 * 0.1,
-                                y as f64 * 0.1,
+                                world_y as f64 * 0.1,
                                 world_z as f64 * 0.1,
                             ]);
-                            if y < 16 && ore > 1.2 {
+                            if world_y < 16 && ore > 1.2 {
                                 BlockState::DIAMOND_ORE
-                            } else if y < 32 && ore > 1.0 {
+                            } else if world_y < 32 && ore > 1.0 {
                                 BlockState::IRON_ORE
-                            } else if y < 48 && ore > 0.8 {
+                            } else if world_y < 48 && ore > 0.8 {
                                 BlockState::COAL_ORE
                             } else {
                                 BlockState::STONE
@@ -171,22 +167,23 @@ impl TerrainGenerator {
                         }
                     };
 
-                    chunk.set_block([local_x as i32, y, local_z as i32], block);
+                    chunk.set_block(local_x as u32, chunk_y, local_z as u32, block);
                 }
 
                 let sea = self.dimension.sea_level();
                 if height < sea {
-                    for y in (height + 1)..=sea {
-                        chunk.set_block([local_x as i32, y, local_z as i32], BlockState::WATER);
+                    for world_y in (height + 1)..=sea {
+                        let chunk_y = (world_y + 64) as u32;
+                        chunk.set_block(local_x as u32, chunk_y, local_z as u32, BlockState::WATER);
                     }
                 }
 
                 if height >= sea {
                     self.place_overworld_decoration(
                         &mut chunk,
-                        local_x as i32,
+                        local_x,
                         height,
-                        local_z as i32,
+                        local_z,
                         biome,
                     );
                 }
@@ -235,9 +232,9 @@ impl TerrainGenerator {
     fn place_overworld_decoration(
         &self,
         chunk: &mut UnloadedChunk,
-        local_x: i32,
+        local_x: usize,
         height: i32,
-        local_z: i32,
+        local_z: usize,
         biome: OverworldBiome,
     ) {
         let mut rng = rand::thread_rng();
@@ -251,7 +248,8 @@ impl TerrainGenerator {
         if rng.gen::<f32>() < grass_chance {
             let tall_grass_height = if rng.gen::<f32>() < 0.1 { 2 } else { 1 };
             for dy in 0..tall_grass_height {
-                chunk.set_block([local_x, height + 1 + dy, local_z], BlockState::GRASS);
+                let chunk_y = (height + 1 + dy + 64) as u32;
+                chunk.set_block(local_x as u32, chunk_y, local_z as u32, BlockState::GRASS);
             }
         }
 
@@ -283,7 +281,8 @@ impl TerrainGenerator {
             };
 
             for dy in 1..=tree_height {
-                chunk.set_block([local_x, height + dy, local_z], trunk);
+                let chunk_y = (height + dy + 64) as u32;
+                chunk.set_block(local_x as u32, chunk_y, local_z as u32, trunk);
             }
 
             let leaf_start = tree_height - 2;
@@ -294,10 +293,11 @@ impl TerrainGenerator {
                         if dx == 0 && dz == 0 && dy <= tree_height {
                             continue;
                         }
-                        let lx = local_x + dx;
-                        let lz = local_z + dz;
+                        let lx = local_x as i32 + dx;
+                        let lz = local_z as i32 + dz;
                         if lx >= 0 && lx < 16 && lz >= 0 && lz < 16 {
-                            chunk.set_block([lx, height + dy, lz], leaves);
+                            let chunk_y = (height + dy + 64) as u32;
+                            chunk.set_block(lx as u32, chunk_y, lz as u32, leaves);
                         }
                     }
                 }
@@ -307,7 +307,8 @@ impl TerrainGenerator {
         if biome == OverworldBiome::Desert && rng.gen::<f32>() < 0.005 {
             let cactus_height = 1 + rng.gen_range(0..3);
             for dy in 0..cactus_height {
-                chunk.set_block([local_x, height + 1 + dy, local_z], BlockState::CACTUS);
+                let chunk_y = (height + 1 + dy + 64) as u32;
+                chunk.set_block(local_x as u32, chunk_y, local_z as u32, BlockState::CACTUS);
             }
         }
 
@@ -318,12 +319,13 @@ impl TerrainGenerator {
                 2 => BlockState::CORNFLOWER,
                 _ => BlockState::AZURE_BLUET,
             };
-            chunk.set_block([local_x, height + 1, local_z], flower);
+            let chunk_y = (height + 1 + 64) as u32;
+            chunk.set_block(local_x as u32, chunk_y, local_z as u32, flower);
         }
     }
 
     fn generate_nether_chunk(&self, chunk_x: i32, chunk_z: i32) -> UnloadedChunk {
-        let mut chunk = UnloadedChunk::new();
+        let mut chunk = UnloadedChunk::with_height(128);
         let base_x = chunk_x * 16;
         let base_z = chunk_z * 16;
 
@@ -349,7 +351,7 @@ impl TerrainGenerator {
                         } else if ore > 0.9 && y < 40 {
                             BlockState::NETHER_GOLD_ORE
                         } else {
-                            BlockState::NETHER_RACK
+                            BlockState::NETHERRACK
                         }
                     } else if y < 32 {
                         BlockState::LAVA
@@ -357,7 +359,7 @@ impl TerrainGenerator {
                         BlockState::AIR
                     };
 
-                    chunk.set_block([local_x as i32, y, local_z as i32], block);
+                    chunk.set_block(local_x as u32, y as u32, local_z as u32, block);
                 }
             }
         }
@@ -380,7 +382,7 @@ impl TerrainGenerator {
     }
 
     fn generate_end_chunk(&self, chunk_x: i32, chunk_z: i32) -> UnloadedChunk {
-        let mut chunk = UnloadedChunk::new();
+        let mut chunk = UnloadedChunk::with_height(128);
         let base_x = chunk_x * 16;
         let base_z = chunk_z * 16;
 
@@ -422,7 +424,7 @@ impl TerrainGenerator {
                             } else {
                                 BlockState::END_STONE
                             };
-                            chunk.set_block([local_x as i32, y, local_z as i32], block);
+                            chunk.set_block(local_x as u32, y as u32, local_z as u32, block);
                         }
                     }
                 }
@@ -433,7 +435,7 @@ impl TerrainGenerator {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum OverworldBiome {
     Plains,
     Forest,
@@ -447,18 +449,17 @@ pub fn generate_overworld_terrain(layer: &mut ChunkLayer, chunk_x: i32, chunk_z:
     let gen = TerrainGenerator::new(Dimension::Overworld, seed);
     let chunk_data = gen.generate_chunk(chunk_x, chunk_z);
 
-    for local_x in 0..16 {
-        for local_z in 0..16 {
-            for y in -64..320 {
-                let pos = BlockPos::new(
-                    chunk_x * 16 + local_x as i32,
-                    y,
-                    chunk_z * 16 + local_z as i32,
-                );
-                if let Some(block) =
-                    chunk_data.block(BlockPos::new(local_x as i32, y, local_z as i32))
-                {
-                    layer.set_block(pos, block.state);
+    for local_x in 0..16u32 {
+        for local_z in 0..16u32 {
+            for y in 0..chunk_data.height() {
+                let state = chunk_data.block_state(local_x, y, local_z);
+                if state != BlockState::AIR {
+                    let pos = BlockPos::new(
+                        chunk_x * 16 + local_x as i32,
+                        y as i32 - 64,
+                        chunk_z * 16 + local_z as i32,
+                    );
+                    layer.set_block(pos, state);
                 }
             }
         }
@@ -469,18 +470,17 @@ pub fn generate_nether_terrain(layer: &mut ChunkLayer, chunk_x: i32, chunk_z: i3
     let gen = TerrainGenerator::new(Dimension::Nether, seed);
     let chunk_data = gen.generate_chunk(chunk_x, chunk_z);
 
-    for local_x in 0..16 {
-        for local_z in 0..16 {
-            for y in 0..128 {
-                let pos = BlockPos::new(
-                    chunk_x * 16 + local_x as i32,
-                    y,
-                    chunk_z * 16 + local_z as i32,
-                );
-                if let Some(block) =
-                    chunk_data.block(BlockPos::new(local_x as i32, y, local_z as i32))
-                {
-                    layer.set_block(pos, block.state);
+    for local_x in 0..16u32 {
+        for local_z in 0..16u32 {
+            for y in 0..chunk_data.height() {
+                let state = chunk_data.block_state(local_x, y, local_z);
+                if state != BlockState::AIR {
+                    let pos = BlockPos::new(
+                        chunk_x * 16 + local_x as i32,
+                        y as i32,
+                        chunk_z * 16 + local_z as i32,
+                    );
+                    layer.set_block(pos, state);
                 }
             }
         }
@@ -491,18 +491,17 @@ pub fn generate_end_terrain(layer: &mut ChunkLayer, chunk_x: i32, chunk_z: i32, 
     let gen = TerrainGenerator::new(Dimension::End, seed);
     let chunk_data = gen.generate_chunk(chunk_x, chunk_z);
 
-    for local_x in 0..16 {
-        for local_z in 0..16 {
-            for y in 0..128 {
-                let pos = BlockPos::new(
-                    chunk_x * 16 + local_x as i32,
-                    y,
-                    chunk_z * 16 + local_z as i32,
-                );
-                if let Some(block) =
-                    chunk_data.block(BlockPos::new(local_x as i32, y, local_z as i32))
-                {
-                    layer.set_block(pos, block.state);
+    for local_x in 0..16u32 {
+        for local_z in 0..16u32 {
+            for y in 0..chunk_data.height() {
+                let state = chunk_data.block_state(local_x, y, local_z);
+                if state != BlockState::AIR {
+                    let pos = BlockPos::new(
+                        chunk_x * 16 + local_x as i32,
+                        y as i32,
+                        chunk_z * 16 + local_z as i32,
+                    );
+                    layer.set_block(pos, state);
                 }
             }
         }

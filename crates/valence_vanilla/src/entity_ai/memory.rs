@@ -1,116 +1,70 @@
 use std::collections::HashMap;
 
 use bevy_ecs::prelude::*;
-use valence_protocol::BlockPos;
 
-/// Component storing an entity's memory.
-#[derive(Component)]
-pub struct EntityMemory {
-    /// Current path being followed.
-    pub current_path: Vec<BlockPos>,
-    /// Index into the current path.
-    pub path_index: usize,
-    /// Known positions of other entities.
-    pub known_positions: HashMap<Entity, KnownEntityInfo>,
-    /// Last known position of a target.
-    pub last_target_pos: Option<BlockPos>,
-    /// Current target entity (for combat, following, etc.).
-    pub current_target: Option<Entity>,
-    /// Home position (for villagers, pets, etc.).
-    pub home_pos: Option<BlockPos>,
-    /// Work position (for villagers).
-    pub work_pos: Option<BlockPos>,
-    /// General-purpose memory store.
-    pub memories: HashMap<String, MemoryEntry>,
-}
-
-/// Information about a known entity.
 #[derive(Clone, Debug)]
-pub struct KnownEntityInfo {
-    pub position: BlockPos,
-    pub last_seen_tick: u64,
-    pub relationship: EntityRelationship,
-    pub threat_level: f32,
+pub struct MemoryEntry {
+    pub value: MemoryValue,
+    pub timestamp: u64,
 }
 
-/// Relationship to another entity.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum EntityRelationship {
-    /// No special relationship.
-    Neutral,
-    /// Friendly entity (villager of same type, etc.).
-    Friendly,
-    /// Hostile entity (attacking us, or we want to attack).
-    Hostile,
-    /// Target we are trying to reach.
-    Target,
-    /// Entity we are following.
-    Followed,
-}
-
-/// A single memory entry.
 #[derive(Clone, Debug)]
-pub enum MemoryEntry {
-    BlockPos(BlockPos),
+pub enum MemoryValue {
     Entity(Entity),
+    Position(valence_protocol::BlockPos),
     Float(f64),
-    Integer(i64),
-    Boolean(bool),
-    String(String),
-    Vec3(valence_math::DVec3),
+    Bool(bool),
 }
 
-impl Default for EntityMemory {
-    fn default() -> Self {
-        Self {
-            current_path: Vec::new(),
-            path_index: 0,
-            known_positions: HashMap::new(),
-            last_target_pos: None,
-            current_target: None,
-            home_pos: None,
-            work_pos: None,
-            memories: HashMap::new(),
-        }
-    }
+#[derive(Component, Debug, Clone)]
+pub struct EntityMemory {
+    entries: HashMap<String, MemoryEntry>,
+    pub current_target: Option<Entity>,
+    pub home_position: Option<valence_protocol::BlockPos>,
+    pub last_damage_source: Option<String>,
+    pub last_seen_player: Option<Entity>,
+    pub panic_target: Option<valence_protocol::BlockPos>,
 }
 
 impl EntityMemory {
     pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Get the next position in the current path.
-    pub fn next_path_pos(&self) -> Option<BlockPos> {
-        self.current_path.get(self.path_index).copied()
-    }
-
-    /// Advance to the next position in the path.
-    pub fn advance_path(&mut self) {
-        if self.path_index < self.current_path.len() {
-            self.path_index += 1;
+        Self {
+            entries: HashMap::new(),
+            current_target: None,
+            home_position: None,
+            last_damage_source: None,
+            last_seen_player: None,
+            panic_target: None,
         }
     }
 
-    /// Whether the path is exhausted.
-    pub fn path_finished(&self) -> bool {
-        self.path_index >= self.current_path.len()
+    pub fn remember(&mut self, key: &str, value: MemoryValue, tick: u64) {
+        self.entries.insert(
+            key.to_string(),
+            MemoryEntry {
+                value,
+                timestamp: tick,
+            },
+        );
     }
 
-    /// Get remaining path positions.
-    pub fn remaining_path(&self) -> &[BlockPos] {
-        &self.current_path[self.path_index..]
+    pub fn recall(&self, key: &str) -> Option<&MemoryEntry> {
+        self.entries.get(key)
     }
 
-    /// Clear the current path.
-    pub fn clear_path(&mut self) {
-        self.current_path.clear();
-        self.path_index = 0;
+    pub fn forget(&mut self, key: &str) {
+        self.entries.remove(key);
     }
 
-    /// Set a new path.
-    pub fn set_path(&mut self, path: Vec<BlockPos>) {
-        self.current_path = path;
-        self.path_index = 0;
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.current_target = None;
+    }
+
+    pub fn is_expired(&self, key: &str, current_tick: u64, max_age: u64) -> bool {
+        match self.entries.get(key) {
+            Some(entry) => current_tick - entry.timestamp > max_age,
+            None => true,
+        }
     }
 }

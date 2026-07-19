@@ -166,12 +166,8 @@ pub mod play {
     pub use entity_velocity_update_s2c::EntityVelocityUpdateS2c;
     pub mod experience_bar_update_s2c;
     pub use experience_bar_update_s2c::ExperienceBarUpdateS2c;
-    pub mod experience_orb_spawn_s2c;
-    pub use experience_orb_spawn_s2c::ExperienceOrbSpawnS2c;
     pub mod explosion_s2c;
     pub use explosion_s2c::ExplosionS2c;
-    pub mod features_s2c;
-    pub use features_s2c::FeaturesS2c;
     pub mod full_c2s;
     pub use full_c2s::FullC2s;
     pub mod game_join_s2c;
@@ -179,7 +175,7 @@ pub mod play {
     pub mod game_message_s2c;
     pub use game_message_s2c::GameMessageS2c;
     pub mod game_state_change_s2c;
-    pub use game_state_change_s2c::GameStateChangeS2c;
+    pub use game_state_change_s2c::{GameEventKind, GameStateChangeS2c};
     pub mod hand_swing_c2s;
     pub use hand_swing_c2s::HandSwingC2s;
     pub mod health_update_s2c;
@@ -258,8 +254,6 @@ pub mod play {
     pub use player_session_c2s::PlayerSessionC2s;
     pub mod player_spawn_position_s2c;
     pub use player_spawn_position_s2c::PlayerSpawnPositionS2c;
-    pub mod player_spawn_s2c;
-    pub use player_spawn_s2c::PlayerSpawnS2c;
     pub mod position_and_on_ground_c2s;
     pub use position_and_on_ground_c2s::PositionAndOnGroundC2s;
     pub mod profileless_chat_message_s2c;

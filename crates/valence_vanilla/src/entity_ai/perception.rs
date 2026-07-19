@@ -1,117 +1,58 @@
 use bevy_ecs::prelude::*;
 use valence_entity::Position;
-use valence_protocol::BlockPos;
+use valence_server::client::Client;
 
-use super::memory::{EntityMemory, EntityRelationship};
-
-/// Component for entity perception (sight, hearing, smell).
-#[derive(Component)]
+#[derive(Component, Clone, Copy, Debug)]
 pub struct Perception {
-    /// Sight range in blocks.
-    pub sight_range: f32,
-    /// Hearing range in blocks.
-    pub hearing_range: f32,
-    /// Field of view in degrees (total angle, centered on facing direction).
-    pub fov: f32,
-    /// Whether the entity can see in the dark.
-    pub night_vision: bool,
-    /// Whether the entity can hear through walls.
-    pub hearing_through_walls: bool,
-    /// Smell range (for tracking entities by scent).
-    pub smell_range: f32,
-    /// Target the entity is currently focused on.
-    pub focused_entity: Option<Entity>,
-}
-
-impl Default for Perception {
-    fn default() -> Self {
-        Self {
-            sight_range: 16.0,
-            hearing_range: 16.0,
-            fov: 110.0,
-            night_vision: false,
-            hearing_through_walls: false,
-            smell_range: 0.0,
-            focused_entity: None,
-        }
-    }
+    pub sight_range: f64,
+    pub hearing_range: f64,
 }
 
 impl Perception {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            sight_range: 16.0,
+            hearing_range: 16.0,
+        }
     }
 
-    /// Create a perception with custom sight and hearing ranges.
-    pub fn with_ranges(sight: f32, hearing: f32) -> Self {
+    pub fn with_ranges(sight: f64, hearing: f64) -> Self {
         Self {
             sight_range: sight,
             hearing_range: hearing,
-            ..Default::default()
         }
     }
 }
 
-/// Result of a perception check.
-#[derive(Clone, Debug)]
-pub struct DetectionResult {
-    pub entity: Entity,
-    pub detected_by_sight: bool,
-    pub detected_by_sound: bool,
-    pub detected_by_smell: bool,
-    pub distance: f32,
+impl Default for Perception {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-/// System that updates entity perception each tick.
+#[derive(Clone, Debug)]
+pub struct DetectionResult {
+    pub detected_entity: Entity,
+    pub distance: f64,
+    pub is_visible: bool,
+}
+
 pub fn perception_system(
-    mut perceivers: Query<(Entity, &Position, &Perception, &mut EntityMemory)>,
-    targets: Query<(Entity, &Position)>,
+    mob_query: Query<(Entity, &Position, &Perception)>,
+    target_query: Query<(Entity, &Position), With<Client>>,
 ) {
-    for (perceiver_entity, perceiver_pos, perception, mut memory) in &mut perceivers {
-        for (target_entity, target_pos) in &targets {
-            if perceiver_entity == target_entity {
-                continue;
-            }
+    for (_mob_entity, mob_pos, perception) in &mob_query {
+        let mut _nearest: Option<DetectionResult> = None;
 
-            let distance = (target_pos.0 - perceiver_pos.0).length() as f32;
+        for (target_entity, target_pos) in &target_query {
+            let dist = (mob_pos.0 - target_pos.0).length();
 
-            // Check sight
-            let can_see = distance <= perception.sight_range;
-
-            // Check hearing
-            let can_hear = distance <= perception.hearing_range;
-
-            if can_see || can_hear {
-                let _result = DetectionResult {
-                    entity: target_entity,
-                    detected_by_sight: can_see,
-                    detected_by_sound: can_hear,
-                    detected_by_smell: false,
-                    distance,
-                };
-
-                // Update memory with detected entity
-                memory.known_positions.insert(
-                    target_entity,
-                    super::memory::KnownEntityInfo {
-                        position: BlockPos::new(
-                            target_pos.0.x as i32,
-                            target_pos.0.y as i32,
-                            target_pos.0.z as i32,
-                        ),
-                        last_seen_tick: 0, // TODO: use actual tick
-                        relationship: EntityRelationship::Neutral,
-                        threat_level: 0.0,
-                    },
-                );
-
-                if can_see {
-                    memory.last_target_pos = Some(BlockPos::new(
-                        target_pos.0.x as i32,
-                        target_pos.0.y as i32,
-                        target_pos.0.z as i32,
-                    ));
-                }
+            if dist <= perception.sight_range {
+                _nearest = Some(DetectionResult {
+                    detected_entity: target_entity,
+                    distance: dist,
+                    is_visible: true,
+                });
             }
         }
     }

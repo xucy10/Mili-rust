@@ -612,6 +612,10 @@ fn update_player_inventories(
         Without<OpenInventory>,
     >,
 ) {
+    // 🔬 TEMPORARY: Completely disable inventory updates to debug 26.2 protocol issues
+    // TODO: Re-enable once all play packets are verified for 26.2 compliance
+    return;
+
     for (mut inventory, mut client, mut inv_state, cursor_item) in &mut query {
         if inventory.kind != InventoryKind::Player {
             warn!("Inventory on client entity is not a player inventory");
@@ -672,6 +676,10 @@ fn update_open_inventories(
     mut inventories: Query<&mut Inventory>,
     mut commands: Commands,
 ) {
+    // 🔬 TEMPORARY: Completely disable open inventory updates to debug 26.2 protocol issues
+    // TODO: Re-enable once all play packets are verified for 26.2 compliance
+    return;
+
     // These operations need to happen in this order.
 
     // Send the inventory contents to all clients that are viewing an inventory.
@@ -787,6 +795,10 @@ fn update_open_inventories(
 fn update_cursor_item(
     mut clients: Query<(&mut Client, &mut ClientInventoryState, &CursorItem), Changed<CursorItem>>,
 ) {
+    // 🔬 TEMPORARY: Completely disable cursor item updates to debug 26.2 protocol issues
+    // TODO: Re-enable once all play packets are verified for 26.2 compliance
+    return;
+
     for (mut client, inv_state, cursor_item) in &mut clients {
         // The cursor item was not the item the user themselves interacted with
         if inv_state.client_updated_cursor_item.as_ref() != Some(&cursor_item.0) {
@@ -1383,6 +1395,10 @@ fn handle_creative_inventory_action(
     mut inv_action_events: EventWriter<CreativeInventoryActionEvent>,
     mut drop_item_stack_events: EventWriter<DropItemStackEvent>,
 ) {
+    // 🔬 TEMPORARY: Completely disable creative inventory actions to debug 26.2 protocol issues
+    // TODO: Re-enable once all play packets are verified for 26.2 compliance
+    return;
+
     for packet in packets.read() {
         if let Some(pkt) = packet.decode::<CreativeInventoryActionC2s>() {
             let Ok((mut client, mut inventory, mut inv_state, game_mode)) =

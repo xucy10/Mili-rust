@@ -3,7 +3,6 @@ use bevy_ecs::prelude::*;
 use tracing::warn;
 use valence_entity::{Look, Position};
 use valence_math::DVec3;
-use valence_protocol::packets::play::player_position_look_s2c::PlayerPositionLookFlags;
 use valence_protocol::packets::play::{PlayerPositionLookS2c, TeleportConfirmC2s};
 use valence_protocol::WritePacket;
 
@@ -82,19 +81,18 @@ fn teleport(
             state.synced_pos = pos.0;
             state.synced_look = *look;
 
-            let flags = PlayerPositionLookFlags::new()
-                .with_x(!changed_pos)
-                .with_y(!changed_pos)
-                .with_z(!changed_pos)
-                .with_y_rot(!changed_yaw)
-                .with_x_rot(!changed_pitch);
+            let mut flags: i32 = 0;
+            if !changed_pos { flags |= 0x07; } // relative X, Y, Z
+            if !changed_yaw { flags |= 0x08; } // relative yaw
+            if !changed_pitch { flags |= 0x10; } // relative pitch
 
             client.write_packet(&PlayerPositionLookS2c {
+                teleport_id: (state.teleport_id_counter as i32).into(),
                 position: if changed_pos { pos.0 } else { DVec3::ZERO },
+                velocity: DVec3::ZERO,
                 yaw: if changed_yaw { look.yaw } else { 0.0 },
                 pitch: if changed_pitch { look.pitch } else { 0.0 },
                 flags,
-                teleport_id: (state.teleport_id_counter as i32).into(),
             });
 
             state.pending_teleports = state.pending_teleports.wrapping_add(1);

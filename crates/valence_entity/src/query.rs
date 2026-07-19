@@ -8,7 +8,7 @@ use valence_protocol::encode::WritePacket;
 use valence_protocol::packets::play::{
     EntityAnimationS2c, EntityAttributesS2c, EntityPositionS2c, EntitySetHeadYawS2c,
     EntitySpawnS2c, EntityStatusS2c, EntityTrackerUpdateS2c, EntityVelocityUpdateS2c,
-    ExperienceOrbSpawnS2c, MoveRelativeS2c, PlayerSpawnS2c, RotateAndMoveRelativeS2c, RotateS2c,
+    MoveRelativeS2c, RotateAndMoveRelativeS2c, RotateS2c,
 };
 use valence_protocol::var_int::VarInt;
 use valence_protocol::ByteAngle;
@@ -41,28 +41,6 @@ impl EntityInitQueryItem<'_> {
     pub fn write_init_packets<W: WritePacket>(&self, pos: DVec3, mut writer: W) {
         match *self.kind {
             EntityKind::MARKER => {}
-            EntityKind::EXPERIENCE_ORB => {
-                writer.write_packet(&ExperienceOrbSpawnS2c {
-                    entity_id: self.entity_id.get().into(),
-                    position: pos,
-                    count: self.object_data.0 as i16,
-                });
-            }
-            EntityKind::PLAYER => {
-                writer.write_packet(&PlayerSpawnS2c {
-                    entity_id: self.entity_id.get().into(),
-                    player_uuid: self.uuid.0,
-                    position: pos,
-                    yaw: ByteAngle::from_degrees(self.look.yaw),
-                    pitch: ByteAngle::from_degrees(self.look.pitch),
-                });
-
-                // Player spawn packet doesn't include head yaw for some reason.
-                writer.write_packet(&EntitySetHeadYawS2c {
-                    entity_id: self.entity_id.get().into(),
-                    head_yaw: ByteAngle::from_degrees(self.head_yaw.0),
-                });
-            }
             _ => writer.write_packet(&EntitySpawnS2c {
                 entity_id: self.entity_id.get().into(),
                 object_uuid: self.uuid.0,

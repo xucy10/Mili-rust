@@ -1,11 +1,7 @@
-use std::time::Duration;
-
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use valence_entity::Position;
 use valence_math::DVec3;
-use valence_protocol::BlockPos;
-use valence_server::Client;
 
 pub struct CombatPlugin;
 
@@ -303,9 +299,9 @@ pub fn calculate_knockback(
         let nz = diff.z / horizontal_dist;
 
         DVec3::new(
-            -nx * factor + (rand::random::<f64>() - 0.5) * 0.2,
+            -nx * factor as f64 + (rand::random::<f64>() - 0.5) * 0.2,
             0.3 * factor as f64,
-            -nz * factor + (rand::random::<f64>() - 0.5) * 0.2,
+            -nz * factor as f64 + (rand::random::<f64>() - 0.5) * 0.2,
         )
     } else {
         DVec3::new(0.0, 0.3, 0.0)

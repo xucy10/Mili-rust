@@ -74,6 +74,19 @@ fn get_registry_data() -> &'static CachedRegistryData {
         let mut result = vec![];
 
         for (reg_name, reg_value) in compound {
+            if reg_name == "minecraft:enchantment" {
+                let enchantments = valence_registry::enchantment::load_enchantments();
+                let entries: Vec<CachedRegistryEntry> = enchantments
+                    .into_iter()
+                    .map(|(name, element)| CachedRegistryEntry {
+                        name,
+                        element: Some(element),
+                    })
+                    .collect();
+                result.push((reg_name, entries));
+                continue;
+            }
+
             let NbtValue::Compound(mut outer) = reg_value else {
                 continue;
             };
@@ -88,11 +101,22 @@ fn get_registry_data() -> &'static CachedRegistryData {
                     let NbtValue::String(name) = v.remove("name")? else {
                         return None;
                     };
-                    let element = match v.remove("element")? {
-                        NbtValue::Compound(c) => Some(c),
-                        _ => None,
+                    let mut element = match v.remove("element")? {
+                        NbtValue::Compound(c) => c,
+                        _ => return None,
                     };
-                    Some(CachedRegistryEntry { name, element })
+
+                    if reg_name == "minecraft:worldgen/biome" {
+                        if let Some(NbtValue::Compound(effects)) = element.remove("effects") {
+                            let mut cleaned = effects.clone();
+                            cleaned.remove("fog_color");
+                            cleaned.remove("sky_color");
+                            cleaned.remove("water_fog_color");
+                            element.insert("effects".to_string(), NbtValue::Compound(cleaned));
+                        }
+                    }
+
+                    Some(CachedRegistryEntry { name, element: Some(element) })
                 })
                 .collect();
 
@@ -103,40 +127,586 @@ fn get_registry_data() -> &'static CachedRegistryData {
     })
 }
 
-async fn send_registry_data(io: &mut PacketIo) -> anyhow::Result<()> {
+async fn send_registry_data(io: &mut PacketIo, core_known: bool) -> anyhow::Result<()> {
     let data = get_registry_data();
-    for (reg_name, entries) in &data.entries {
-        let reg_entries: Vec<RegistryEntry<'static>> = entries
-            .iter()
-            .map(|e| RegistryEntry {
-                entry_id: Ident::new(e.name.as_str()).unwrap(),
-                data: e.element.clone(),
-            })
-            .collect();
 
-        io.send_packet(&ConfigRegistryDataS2c {
-            registry_id: Ident::new(reg_name.as_str()).unwrap(),
-            entries: Cow::Owned(reg_entries),
-        })
-        .await?;
+    if core_known {
+        let all_reg_entries = get_all_registry_entries();
+        let core_registries = get_core_registry_names();
+        let jar_data = get_jar_dynamic_registries();
+
+        // Track which registries we've sent to avoid duplicates
+        let mut sent_registries = std::collections::HashSet::new();
+
+        for (reg_name, entry_names) in all_reg_entries {
+            let is_core = core_registries.contains(reg_name.as_str());
+
+            let codec_entries: Option<&Vec<CachedRegistryEntry>> = data.entries.iter()
+                .find(|(name, _)| name == reg_name)
+                .map(|(_, entries)| entries);
+
+            let jar_entries: Option<&Vec<(String, Compound)>> = jar_data.get(reg_name.as_str());
+
+            let reg_entries: Vec<RegistryEntry<'static>> = if is_core {
+                entry_names.iter().map(|name| RegistryEntry {
+                    entry_id: Ident::new(name.as_str()).unwrap(),
+                    data: None,
+                }).collect()
+            } else if let Some(entries) = jar_entries {
+                entries.iter().map(|(name, element)| RegistryEntry {
+                    entry_id: Ident::new(name.as_str()).unwrap(),
+                    data: Some(element.clone()),
+                }).collect()
+            } else if let Some(entries) = codec_entries {
+                entries.iter().map(|e| RegistryEntry {
+                    entry_id: Ident::new(e.name.as_str()).unwrap(),
+                    data: e.element.clone(),
+                }).collect()
+            } else {
+                entry_names.iter().map(|name| RegistryEntry {
+                    entry_id: Ident::new(name.as_str()).unwrap(),
+                    data: Some(Compound::new()),
+                }).collect()
+            };
+
+            sent_registries.insert(reg_name.clone());
+            io.send_packet(&ConfigRegistryDataS2c {
+                registry_id: Ident::new(reg_name.as_str()).unwrap(),
+                entries: Cow::Owned(reg_entries),
+            })
+            .await?;
+        }
+
+        // Send dynamic registries from server.jar that are NOT in registries.json
+        for (reg_name, entries) in jar_data {
+            if !sent_registries.contains(reg_name) {
+                let reg_entries: Vec<RegistryEntry<'static>> = entries.iter().map(|(name, element)| {
+                    RegistryEntry {
+                        entry_id: Ident::new(name.as_str()).unwrap(),
+                        data: Some(element.clone()),
+                    }
+                }).collect();
+
+                if !reg_entries.is_empty() {
+                    sent_registries.insert(reg_name.clone());
+                    io.send_packet(&ConfigRegistryDataS2c {
+                        registry_id: Ident::new(reg_name.as_str()).unwrap(),
+                        entries: Cow::Owned(reg_entries),
+                    })
+                    .await?;
+                }
+            }
+        }
+
+        // Send core registries from registry_codec that are not in registries.json
+        // (e.g. dimension_type, worldgen/biome) - the client has built-in data for these
+        for (reg_name, entries) in &data.entries {
+            if !sent_registries.contains(reg_name.as_str()) && core_registries.contains(reg_name.as_str()) {
+                let reg_entries: Vec<RegistryEntry<'static>> = entries
+                    .iter()
+                    .map(|e| RegistryEntry {
+                        entry_id: Ident::new(e.name.as_str()).unwrap(),
+                        data: None,
+                    })
+                    .collect();
+
+                if !reg_entries.is_empty() {
+                    sent_registries.insert(reg_name.clone());
+                    io.send_packet(&ConfigRegistryDataS2c {
+                        registry_id: Ident::new(reg_name.as_str()).unwrap(),
+                        entries: Cow::Owned(reg_entries),
+                    })
+                    .await?;
+                }
+            }
+        }
+    } else {
+        for (reg_name, entries) in &data.entries {
+            if reg_name == "minecraft:enchantment" {
+                continue;
+            }
+
+            let reg_entries: Vec<RegistryEntry<'static>> = entries
+                .iter()
+                .map(|e| RegistryEntry {
+                    entry_id: Ident::new(e.name.as_str()).unwrap(),
+                    data: e.element.clone(),
+                })
+                .collect();
+
+            io.send_packet(&ConfigRegistryDataS2c {
+                registry_id: Ident::new(reg_name.as_str()).unwrap(),
+                entries: Cow::Owned(reg_entries),
+            })
+            .await?;
+        }
     }
     Ok(())
+}
+
+fn get_jar_dynamic_registries() -> &'static std::collections::HashMap<String, Vec<(String, Compound)>> {
+    static DATA: OnceLock<std::collections::HashMap<String, Vec<(String, Compound)>>> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let jar_bytes: &[u8] = include_bytes!("../../../server.jar");
+        let reader = std::io::Cursor::new(jar_bytes);
+        let mut archive = match zip::ZipArchive::new(reader) {
+            Ok(a) => a,
+            Err(e) => {
+                error!("failed to open server.jar: {e}");
+                return std::collections::HashMap::new();
+            }
+        };
+
+        let dynamic_regs = [
+            "cat_variant", "cat_sound_variant",
+            "chicken_variant", "chicken_sound_variant",
+            "cow_variant", "cow_sound_variant",
+            "frog_variant",
+            "painting_variant",
+            "pig_variant", "pig_sound_variant",
+            "wolf_variant", "wolf_sound_variant",
+            "zombie_nautilus_variant",
+            "banner_pattern",
+            "damage_type",
+            "instrument",
+            "dialog",
+            "timeline",
+            "world_clock",
+            "trim_material",
+            "trim_pattern",
+            "jukebox_song",
+            // enchantment is core, handled by client built-in data
+        ];
+
+        let mut result = std::collections::HashMap::new();
+
+        // The server.jar is a bundler. The actual data is in a nested version jar.
+        // Read versions.list to find the path, e.g. "26.2/server-26.2.jar".
+        let mut target_bytes: Vec<u8> = jar_bytes.to_vec();
+        let mut version_jar_path = String::new();
+        for i in 0..archive.len() {
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            let name = file.name().to_string();
+            if name == "META-INF/versions.list" {
+                let mut content = String::new();
+                if std::io::Read::read_to_string(&mut file, &mut content).is_ok() {
+                    // Format: "<sha256>\t<version>\t<path>"
+                    if let Some(path) = content.split('\t').nth(2) {
+                        version_jar_path = format!("META-INF/versions/{}", path.trim());
+                    }
+                }
+            }
+        }
+
+        if !version_jar_path.is_empty() {
+            for i in 0..archive.len() {
+                let mut file = match archive.by_index(i) {
+                    Ok(f) => f,
+                    Err(_) => continue,
+                };
+                if file.name() == version_jar_path {
+                    let mut buf = vec![];
+                    if std::io::Read::read_to_end(&mut file, &mut buf).is_ok() {
+                        info!("extracted version jar: {}", version_jar_path);
+                        target_bytes = buf;
+                    }
+                    break;
+                }
+            }
+        }
+
+        let target_reader = std::io::Cursor::new(&target_bytes);
+        let mut target_archive = match zip::ZipArchive::new(target_reader) {
+            Ok(a) => a,
+            Err(e) => {
+                error!("failed to open target archive: {e}");
+                return std::collections::HashMap::new();
+            }
+        };
+
+        for reg in &dynamic_regs {
+            let prefix = format!("data/minecraft/{reg}/");
+            let mut entries = vec![];
+
+            for i in 0..target_archive.len() {
+                let mut file = match target_archive.by_index(i) {
+                    Ok(f) => f,
+                    Err(_) => continue,
+                };
+                let name = file.name().to_string();
+                if name.starts_with(&prefix) && name.ends_with(".json") {
+                    let entry_id = name.split('/').last().unwrap().replace(".json", "");
+                    let mut content = String::new();
+                    if std::io::Read::read_to_string(&mut file, &mut content).is_err() {
+                        continue;
+                    }
+                    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let compound = json_to_nbt_compound(&json_val);
+                        entries.push((format!("minecraft:{entry_id}"), compound));
+                    }
+                }
+            }
+
+            if !entries.is_empty() {
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                result.insert(format!("minecraft:{reg}"), entries);
+            }
+        }
+
+        info!("loaded {} dynamic registries from server.jar", result.len());
+        result
+    })
+}
+
+fn get_jar_dynamic_tags() -> &'static std::collections::HashMap<String, std::collections::HashMap<String, Vec<String>>> {
+    static DATA: OnceLock<std::collections::HashMap<String, std::collections::HashMap<String, Vec<String>>>> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let jar_bytes: &[u8] = include_bytes!("../../../server.jar");
+        let reader = std::io::Cursor::new(jar_bytes);
+        let mut archive = match zip::ZipArchive::new(reader) {
+            Ok(a) => a,
+            Err(e) => {
+                error!("failed to open server.jar for tags: {e}");
+                return std::collections::HashMap::new();
+            }
+        };
+
+        let tag_registries = [
+            "banner_pattern",
+            "cat_variant",
+            "painting_variant",
+            "damage_type",
+            "instrument",
+            "trim_material",
+            "trim_pattern",
+            "world_clock",
+            "jukebox_song",
+            "dialog",
+            "timeline",
+        ];
+
+        let mut target_bytes: Vec<u8> = jar_bytes.to_vec();
+        let mut version_jar_path = String::new();
+        for i in 0..archive.len() {
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            let name = file.name().to_string();
+            if name == "META-INF/versions.list" {
+                let mut content = String::new();
+                if std::io::Read::read_to_string(&mut file, &mut content).is_ok() {
+                    if let Some(path) = content.split('\t').nth(2) {
+                        version_jar_path = format!("META-INF/versions/{}", path.trim());
+                    }
+                }
+            }
+        }
+
+        if !version_jar_path.is_empty() {
+            for i in 0..archive.len() {
+                let mut file = match archive.by_index(i) {
+                    Ok(f) => f,
+                    Err(_) => continue,
+                };
+                if file.name() == version_jar_path {
+                    let mut buf = vec![];
+                    if std::io::Read::read_to_end(&mut file, &mut buf).is_ok() {
+                        target_bytes = buf;
+                    }
+                    break;
+                }
+            }
+        }
+
+        let target_reader = std::io::Cursor::new(&target_bytes);
+        let mut target_archive = match zip::ZipArchive::new(target_reader) {
+            Ok(a) => a,
+            Err(e) => {
+                error!("failed to open target archive for tags: {e}");
+                return std::collections::HashMap::new();
+            }
+        };
+
+        let mut result: std::collections::HashMap<String, std::collections::HashMap<String, Vec<String>>> =
+            std::collections::HashMap::new();
+
+        for reg in &tag_registries {
+            let prefix = format!("data/minecraft/tags/{reg}/");
+            let mut tags: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+
+            for i in 0..target_archive.len() {
+                let mut file = match target_archive.by_index(i) {
+                    Ok(f) => f,
+                    Err(_) => continue,
+                };
+                let name = file.name().to_string();
+                if name.starts_with(&prefix) && name.ends_with(".json") {
+                    // Extract tag name from path: data/minecraft/tags/banner_pattern/pattern_item/flower.json
+                    // -> pattern_item/flower
+                    let relative = name[prefix.len()..].replace(".json", "");
+                    let tag_name = format!("minecraft:{relative}");
+
+                    let mut content = String::new();
+                    if std::io::Read::read_to_string(&mut file, &mut content).is_err() {
+                        continue;
+                    }
+                    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(values) = json_val.get("values").and_then(|v| v.as_array()) {
+                            let entries: Vec<String> = values
+                                .iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect();
+                            if !entries.is_empty() {
+                                tags.insert(tag_name, entries);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !tags.is_empty() {
+                result.insert(format!("minecraft:{reg}"), tags);
+            }
+        }
+
+        info!("loaded {} tag groups from server.jar", result.len());
+        result
+    })
+}
+
+fn json_to_nbt_compound(value: &serde_json::Value) -> Compound {
+    let mut compound = Compound::new();
+    if let serde_json::Value::Object(map) = value {
+        for (k, v) in map {
+            compound.insert(k.clone(), json_to_nbt_value(v));
+        }
+    }
+    compound
+}
+
+fn json_to_nbt_value(value: &serde_json::Value) -> NbtValue {
+    match value {
+        serde_json::Value::Null => NbtValue::Compound(Compound::new()),
+        serde_json::Value::Bool(b) => NbtValue::Byte(if *b { 1 } else { 0 }),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
+                    NbtValue::Int(i as i32)
+                } else {
+                    NbtValue::Long(i)
+                }
+            } else if let Some(f) = n.as_f64() {
+                NbtValue::Double(f)
+            } else {
+                NbtValue::Int(0)
+            }
+        }
+        serde_json::Value::String(s) => NbtValue::String(s.clone()),
+        serde_json::Value::Array(arr) => {
+            if arr.is_empty() {
+                NbtValue::List(List::End)
+            } else {
+                match &arr[0] {
+                    serde_json::Value::String(_) => {
+                        let list: Vec<String> = arr
+                            .iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                        NbtValue::List(List::String(list))
+                    }
+                    serde_json::Value::Number(_) => {
+                        if arr[0].as_i64().is_some() {
+                            let list: Vec<i32> = arr
+                                .iter()
+                                .filter_map(|v| v.as_i64().map(|i| i as i32))
+                                .collect();
+                            NbtValue::List(List::Int(list))
+                        } else {
+                            let list: Vec<f64> = arr
+                                .iter()
+                                .filter_map(|v| v.as_f64())
+                                .collect();
+                            NbtValue::List(List::Double(list))
+                        }
+                    }
+                    serde_json::Value::Bool(_) => {
+                        let list: Vec<i8> = arr
+                            .iter()
+                            .filter_map(|v| v.as_bool().map(|b| if b { 1 } else { 0 }))
+                            .collect();
+                        NbtValue::List(List::Byte(list))
+                    }
+                    _ => {
+                        let list: Vec<Compound> =
+                            arr.iter().map(|v| json_to_nbt_compound(v)).collect();
+                        NbtValue::List(List::Compound(list))
+                    }
+                }
+            }
+        }
+        serde_json::Value::Object(_) => NbtValue::Compound(json_to_nbt_compound(value)),
+    }
+}
+
+fn get_core_registry_names() -> &'static std::collections::HashSet<&'static str> {
+    static NAMES: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
+    NAMES.get_or_init(|| {
+        [
+            "minecraft:activity",
+            "minecraft:attribute",
+            "minecraft:attribute_type",
+            "minecraft:block",
+            "minecraft:block_entity_type",
+            "minecraft:block_predicate_type",
+            "minecraft:block_type",
+            "minecraft:chunk_status",
+            "minecraft:command_argument_type",
+            "minecraft:consume_effect_type",
+            "minecraft:creative_mode_tab",
+            "minecraft:custom_stat",
+            "minecraft:data_component_predicate_type",
+            "minecraft:data_component_type",
+            "minecraft:enchantment_effect_component_type",
+            "minecraft:enchantment_entity_effect_type",
+            "minecraft:enchantment_level_based_value_type",
+            "minecraft:enchantment_location_based_effect_type",
+            "minecraft:enchantment_provider_type",
+            "minecraft:enchantment_value_effect_type",
+            "minecraft:entity_sub_predicate_type",
+            "minecraft:entity_type",
+            "minecraft:float_provider_type",
+            "minecraft:fluid",
+            "minecraft:game_event",
+            "minecraft:game_rule",
+            "minecraft:height_provider_type",
+            "minecraft:int_provider_type",
+            "minecraft:item",
+            "minecraft:loot_condition_type",
+            "minecraft:loot_function_type",
+            "minecraft:loot_nbt_provider_type",
+            "minecraft:loot_number_provider_type",
+            "minecraft:loot_pool_entry_type",
+            "minecraft:loot_score_provider_type",
+            "minecraft:map_decoration_type",
+            "minecraft:memory_module_type",
+            "minecraft:menu",
+            "minecraft:mob_effect",
+            "minecraft:number_format_type",
+            "minecraft:particle_type",
+            "minecraft:point_of_interest_type",
+            "minecraft:position_source_type",
+            "minecraft:potion",
+            "minecraft:recipe_book_category",
+            "minecraft:recipe_display",
+            "minecraft:recipe_serializer",
+            "minecraft:recipe_type",
+            "minecraft:rule_block_entity_modifier",
+            "minecraft:rule_test",
+            "minecraft:sensor_type",
+            "minecraft:slot_display",
+            "minecraft:slot_source_type",
+            "minecraft:sound_event",
+            "minecraft:stat_type",
+            "minecraft:trigger_type",
+            "minecraft:villager_profession",
+            "minecraft:villager_type",
+            "minecraft:worldgen/biome_source",
+            "minecraft:worldgen/block_state_provider_type",
+            "minecraft:worldgen/carver",
+            "minecraft:worldgen/chunk_generator",
+            "minecraft:worldgen/density_function_type",
+            "minecraft:worldgen/feature",
+            "minecraft:worldgen/feature_size_type",
+            "minecraft:worldgen/foliage_placer_type",
+            "minecraft:worldgen/material_condition",
+            "minecraft:worldgen/material_rule",
+            "minecraft:worldgen/placement_modifier_type",
+            "minecraft:worldgen/pool_alias_binding",
+            "minecraft:worldgen/root_placer_type",
+            "minecraft:worldgen/structure_piece",
+            "minecraft:worldgen/structure_placement",
+            "minecraft:worldgen/structure_pool_element",
+            "minecraft:worldgen/structure_processor",
+            "minecraft:worldgen/structure_type",
+            "minecraft:worldgen/tree_decorator_type",
+            "minecraft:worldgen/trunk_placer_type",
+            "minecraft:dimension_type",
+            "minecraft:worldgen/biome",
+        ].into_iter().collect()
+    })
+}
+
+fn get_all_registry_entries() -> &'static Vec<(String, Vec<String>)> {
+    static DATA: OnceLock<Vec<(String, Vec<String>)>> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let json_str = include_str!("../../valence_registry/extracted/registries.json");
+        let json: serde_json::Value =
+            serde_json::from_str(json_str).expect("failed to parse registries.json");
+        let mut result = vec![];
+        if let Some(obj) = json.as_object() {
+            for (reg_name, reg_value) in obj {
+                let mut entry_names: Vec<String> = reg_value
+                    .get("entries")
+                    .and_then(|e| e.as_object())
+                    .map(|entries| entries.keys().cloned().collect())
+                    .unwrap_or_default();
+                entry_names.sort();
+                result.push((reg_name.clone(), entry_names));
+            }
+        }
+        result.sort_by(|a, b| a.0.cmp(&b.0));
+        result
+    })
 }
 
 fn get_tags_data() -> &'static ConfigRegistryMap {
     static TAGS_DATA: OnceLock<ConfigRegistryMap> = OnceLock::new();
     TAGS_DATA.get_or_init(|| {
-        let json_str = include_str!("../../valence_registry/extracted/tags.json");
-        let json: serde_json::Value =
-            serde_json::from_str(json_str).expect("failed to parse tags.json");
+        let tags_str = include_str!("../../valence_registry/extracted/tags.json");
+        let tags_json: serde_json::Value =
+            serde_json::from_str(tags_str).expect("failed to parse tags.json");
+
+        let registries_str = include_str!("../../valence_registry/extracted/registries.json");
+        let registries_json: serde_json::Value =
+            serde_json::from_str(registries_str).expect("failed to parse registries.json");
+
+        let mut registry_id_map: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
+            std::collections::HashMap::new();
+
+        if let Some(regs) = registries_json.as_object() {
+            for (reg_name, reg_value) in regs {
+                let mut id_map = std::collections::HashMap::new();
+                if let Some(entries) = reg_value.get("entries").and_then(|e| e.as_object()) {
+                    for (entry_name, entry_value) in entries {
+                        if let Some(protocol_id) = entry_value.get("protocol_id").and_then(|v| v.as_i64()) {
+                            id_map.insert(entry_name.clone(), protocol_id as i32);
+                        }
+                    }
+                }
+                registry_id_map.insert(reg_name.clone(), id_map);
+            }
+        }
 
         let mut result = ConfigRegistryMap::new();
 
-        if let Some(registries) = json.as_object() {
+        if let Some(registries) = tags_json.as_object() {
             for (registry_name, tags_value) in registries {
-                let reg_ident: Ident<String> = Ident::new(registry_name.clone())
+                let full_reg_name = if registry_name.contains(':') {
+                    registry_name.clone()
+                } else {
+                    format!("minecraft:{registry_name}")
+                };
+
+                let reg_ident: Ident<String> = Ident::new(full_reg_name.clone())
                     .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
                     .into();
+
+                let id_map = registry_id_map.get(&full_reg_name);
+
                 let mut tag_map = BTreeMap::new();
 
                 if let Some(tags_obj) = tags_value.as_object() {
@@ -144,16 +714,17 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
                         let tag_ident: Ident<String> = Ident::new(tag_name.clone())
                             .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
                             .into();
-                        let entries: Vec<Ident<String>> = entries_value
+                        let entries: Vec<VarInt> = entries_value
                             .as_array()
                             .map(|arr| {
                                 arr.iter()
                                     .filter_map(|v| {
                                         let s = v.as_str()?;
-                                        if s.starts_with('#') {
-                                            None
+                                        let entry_name = s.strip_prefix('#').unwrap_or(s);
+                                        if let Some(map) = id_map {
+                                            map.get(entry_name).map(|&id| VarInt(id))
                                         } else {
-                                            Ident::new(s.to_owned()).ok().map(Into::into)
+                                            None
                                         }
                                     })
                                     .collect()
@@ -169,7 +740,54 @@ fn get_tags_data() -> &'static ConfigRegistryMap {
             }
         }
 
-        info!("loaded {} tag registries", result.len());
+        info!("loaded {} tag registries from tags.json", result.len());
+
+        // Merge jar dynamic tags (for registries not in tags.json)
+        let jar_tags = get_jar_dynamic_tags();
+        let jar_regs = get_jar_dynamic_registries();
+
+        for (full_reg_name, tag_map_raw) in jar_tags {
+            let reg_ident: Ident<String> = Ident::new(full_reg_name.clone())
+                .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
+                .into();
+
+            // Build protocol ID map from jar entries (sorted order = protocol ID)
+            let mut id_map = std::collections::HashMap::new();
+            if let Some(entries) = jar_regs.get(full_reg_name.as_str()) {
+                for (idx, (name, _)) in entries.iter().enumerate() {
+                    id_map.insert(name.clone(), idx as i32);
+                }
+            }
+            // Also check registries.json for protocol IDs
+            if let Some(map) = registry_id_map.get(full_reg_name.as_str()) {
+                for (name, id) in map {
+                    id_map.entry(name.clone()).or_insert(*id);
+                }
+            }
+
+            let mut tag_map = BTreeMap::new();
+            for (tag_name, entry_names) in tag_map_raw {
+                let tag_ident: Ident<String> = Ident::new(tag_name.clone())
+                    .unwrap_or_else(|_| Ident::new("minecraft:unknown".to_owned()).unwrap())
+                    .into();
+                let entries: Vec<VarInt> = entry_names
+                    .iter()
+                    .filter_map(|s| {
+                        let entry_name = s.strip_prefix('#').unwrap_or(s);
+                        id_map.get(entry_name).map(|&id| VarInt(id))
+                    })
+                    .collect();
+                if !entries.is_empty() {
+                    tag_map.insert(tag_ident, entries);
+                }
+            }
+
+            if !tag_map.is_empty() {
+                result.entry(reg_ident).or_default().extend(tag_map);
+            }
+        }
+
+        info!("loaded {} tag registries total", result.len());
         result
     })
 }
@@ -201,17 +819,32 @@ async fn handle_configuration(io: &mut PacketIo) -> anyhow::Result<()> {
         }
     }
 
-    // 2. Send known packs (empty - server doesn't know any packs)
+    // 2. Send known packs - declare minecraft:core so client uses built-in data
+    use valence_server::protocol::packets::configuration::config_select_known_packs_s2c::KnownPack as S2cKnownPack;
+    let core_pack = S2cKnownPack {
+        namespace: "minecraft",
+        id: "core",
+        version: "26.2",
+    };
     io.send_packet(&ConfigSelectKnownPacksS2c {
-        packs: Cow::Borrowed(&[]),
+        packs: Cow::Owned(vec![core_pack]),
     })
     .await?;
 
     // 3. Receive client's known packs response
-    let _known_packs: ConfigSelectKnownPacksC2s = io.recv_packet().await?;
+    let known_packs: ConfigSelectKnownPacksC2s = io.recv_packet().await?;
+
+    let core_known = known_packs.packs.iter().any(|p| {
+        p.namespace == "minecraft" && p.id == "core" && p.version == "26.2"
+    });
 
     // 4. Send registry data
-    send_registry_data(io).await?;
+    //    When both sides know minecraft:core, the client has built-in data for
+    //    all core registries. We still need to send ConfigRegistryData for each
+    //    registry the client expects, but with has_data=false for entries that
+    //    exist in the core pack. For dynamic registries not in core, we must
+    //    send actual data.
+    send_registry_data(io, core_known).await?;
 
     // 5. Send tags (damage_type tags required for Finish Configuration)
     let tags = get_tags_data();

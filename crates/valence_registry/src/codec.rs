@@ -60,42 +60,66 @@ impl Default for RegistryCodec {
 
         for (k, v) in compound {
             let reg_name: Ident<String> = Ident::new(k).expect("invalid registry name").into();
+
             let mut reg_values = vec![];
 
-            let Value::Compound(mut outer) = v else {
-                error!("registry {reg_name} is not a compound");
-                continue;
-            };
-
-            let values = match outer.remove("value") {
-                Some(Value::List(List::Compound(values))) => values,
-                Some(Value::List(List::End)) => continue,
-                _ => {
-                    error!("missing \"value\" compound in {reg_name}");
-                    continue;
+            if reg_name.as_str() == "minecraft:enchantment" {
+                for (name, element) in crate::enchantment::load_enchantments() {
+                    let name = match Ident::new(name) {
+                        Ok(n) => n.into(),
+                        Err(e) => {
+                            error!("invalid enchantment name \"{}\"", e.0);
+                            continue;
+                        }
+                    };
+                    reg_values.push(RegistryValue { name, element });
                 }
-            };
-
-            for mut value in values {
-                let Some(Value::String(name)) = value.remove("name") else {
-                    error!("missing \"name\" string in value for {reg_name}");
+            } else {
+                let Value::Compound(mut outer) = v else {
+                    error!("registry {reg_name} is not a compound");
                     continue;
                 };
 
-                let name = match Ident::new(name) {
-                    Ok(n) => n.into(),
-                    Err(e) => {
-                        error!("invalid registry value name \"{}\"", e.0);
+                let values = match outer.remove("value") {
+                    Some(Value::List(List::Compound(values))) => values,
+                    Some(Value::List(List::End)) => continue,
+                    _ => {
+                        error!("missing \"value\" compound in {reg_name}");
                         continue;
                     }
                 };
 
-                let Some(Value::Compound(element)) = value.remove("element") else {
-                    error!("missing \"element\" compound in value for {reg_name}");
-                    continue;
-                };
+                for mut value in values {
+                    let Some(Value::String(name)) = value.remove("name") else {
+                        error!("missing \"name\" string in value for {reg_name}");
+                        continue;
+                    };
 
-                reg_values.push(RegistryValue { name, element });
+                    let name = match Ident::new(name) {
+                        Ok(n) => n.into(),
+                        Err(e) => {
+                            error!("invalid registry value name \"{}\"", e.0);
+                            continue;
+                        }
+                    };
+
+                    let Some(Value::Compound(mut element)) = value.remove("element") else {
+                        error!("missing \"element\" compound in value for {reg_name}");
+                        continue;
+                    };
+
+                    if reg_name.as_str() == "minecraft:worldgen/biome" {
+                        if let Some(Value::Compound(effects)) = element.remove("effects") {
+                            let mut cleaned = effects.clone();
+                            cleaned.remove("fog_color");
+                            cleaned.remove("sky_color");
+                            cleaned.remove("water_fog_color");
+                            element.insert("effects".to_string(), Value::Compound(cleaned));
+                        }
+                    }
+
+                    reg_values.push(RegistryValue { name, element });
+                }
             }
 
             registries.insert(reg_name, reg_values);

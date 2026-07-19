@@ -102,7 +102,8 @@ fn layer_chunk_view_change() {
     // Collect all chunks received on join.
     for f in helper.collect_received().0 {
         if f.id == ChunkDataS2c::ID {
-            let ChunkDataS2c { pos, .. } = f.decode::<ChunkDataS2c>().unwrap();
+            let ChunkDataS2c { x, z, .. } = f.decode::<ChunkDataS2c>().unwrap();
+            let pos = ChunkPos::new(x, z);
             // Newly received chunk was not previously loaded.
             assert!(loaded_chunks.insert(pos), "({pos:?})");
         }
@@ -126,7 +127,8 @@ fn layer_chunk_view_change() {
     for f in helper.collect_received().0 {
         match f.id {
             ChunkDataS2c::ID => {
-                let ChunkDataS2c { pos, .. } = f.decode().unwrap();
+                let ChunkDataS2c { x, z, .. } = f.decode().unwrap();
+                let pos = ChunkPos::new(x, z);
                 // Newly received chunk was not previously loaded.
                 assert!(loaded_chunks.insert(pos), "({pos:?})");
             }

@@ -271,10 +271,10 @@ impl<'de> Deserialize<'de> for BiomeEffects {
 
         let h = BiomeEffectsHelper::deserialize(deserializer)?;
         Ok(BiomeEffects {
-            fog_color: h.fog_color,
-            sky_color: h.sky_color,
+            fog_color: None,
+            sky_color: None,
             water_color: h.water_color,
-            water_fog_color: h.water_fog_color,
+            water_fog_color: None,
             grass_color: h.grass_color,
         })
     }

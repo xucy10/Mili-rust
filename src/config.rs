@@ -44,8 +44,8 @@ impl Default for ServerConfig {
             whitelist: false,
             chunk_render_distance: 5,
             default_gamemode: "survival".into(),
-            network_compression_threshold: 256,
-            compression_enabled: true,
+            network_compression_threshold: -1,
+            compression_enabled: false,
             world: "world".into(),
             spawn: SpawnConfig::default(),
         }

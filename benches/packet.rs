@@ -2,12 +2,13 @@ use std::borrow::Cow;
 use std::hint::black_box;
 
 use divan::Bencher;
-use valence::nbt::{compound, List};
+use valence::nbt::{compound, to_binary_network, List};
 use valence::prelude::*;
 use valence::protocol::decode::PacketDecoder;
 use valence::protocol::encode::{PacketEncoder, PacketWriter, WritePacket};
 use valence::protocol::packets::play::{ChunkDataS2c, EntitySpawnS2c, PlayerListHeaderS2c};
-use valence::protocol::{ByteAngle, FixedArray, VarInt};
+use valence::protocol::packets::play::chunk_data_s2c::ChunkDataWrapper;
+use valence::protocol::{BoundedRawBytes, ByteAngle, FixedArray, VarInt};
 use valence::text::IntoText;
 use valence_server::protocol::Velocity;
 use valence_server::CompressionThreshold;
@@ -21,21 +22,36 @@ pub(crate) fn setup<'a>() -> (
     let encoder = PacketEncoder::new();
 
     const BLOCKS_AND_BIOMES: [u8; 2000] = [0x80; 2000];
-    static SKY_LIGHT_ARRAYS: [FixedArray<u8, 2048>; 26] = [FixedArray([0xff; 2048]); 26];
+    static SKY_LIGHT_ARRAYS: [u8; 26 * 2048 + 1] = {
+        let mut buf = [0u8; 26 * 2048 + 1];
+        buf[0] = 26; // VarInt(26) = 0x1A
+        let mut i = 1;
+        while i < buf.len() {
+            buf[i] = 0xff;
+            i += 1;
+        }
+        buf
+    };
+
+    let heightmaps_compound = compound! {
+        "MOTION_BLOCKING" => List::Long(vec![123; 256]),
+    };
+    let mut chunk_data_bytes = vec![];
+    to_binary_network(&heightmaps_compound, &mut chunk_data_bytes).unwrap();
+    VarInt(BLOCKS_AND_BIOMES.len() as i32).encode(&mut chunk_data_bytes).unwrap();
+    chunk_data_bytes.extend_from_slice(BLOCKS_AND_BIOMES.as_slice());
+    VarInt(0i32).encode(&mut chunk_data_bytes).unwrap();
 
     let chunk_data_packet = ChunkDataS2c {
-        pos: ChunkPos::new(123, 456),
-        heightmaps: Cow::Owned(compound! {
-            "MOTION_BLOCKING" => List::Long(vec![123; 256]),
-        }),
-        blocks_and_biomes: BLOCKS_AND_BIOMES.as_slice(),
-        block_entities: Cow::Borrowed(&[]),
+        x: 123,
+        z: 456,
+        chunk_data: ChunkDataWrapper(&chunk_data_bytes),
         sky_light_mask: Cow::Borrowed(&[]),
         block_light_mask: Cow::Borrowed(&[]),
         empty_sky_light_mask: Cow::Borrowed(&[]),
         empty_block_light_mask: Cow::Borrowed(&[]),
-        sky_light_arrays: Cow::Borrowed(SKY_LIGHT_ARRAYS.as_slice()),
-        block_light_arrays: Cow::Borrowed(&[]),
+        sky_light_arrays: RawBytes(&SKY_LIGHT_ARRAYS),
+        block_light_arrays: RawBytes(&[]),
     };
 
     let player_list_header_packet = PlayerListHeaderS2c {

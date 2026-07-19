@@ -12,6 +12,7 @@ pub struct ClientSettingsC2s<'a> {
     pub main_arm: MainArm,
     pub enable_text_filtering: bool,
     pub allow_server_listings: bool,
+    pub particle_status: ParticleStatus,
 }
 
 #[bitfield(u8)]
@@ -40,4 +41,12 @@ pub enum MainArm {
     Left,
     #[default]
     Right,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Encode, Decode)]
+pub enum ParticleStatus {
+    All,
+    #[default]
+    Decreased,
+    Minimal,
 }

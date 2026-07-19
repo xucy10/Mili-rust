@@ -5,7 +5,7 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_time::prelude::*;
 use valence_math::DVec3;
-use valence_protocol::{BlockPos, ItemStack};
+use valence_protocol::{BlockPos, ItemKind, ItemStack};
 use valence_server::entity::Position;
 
 /// Villager profession types.
@@ -627,7 +627,7 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
     let diamond_leggings = ItemStack::new(ItemKind::DiamondLeggings, 1, None);
     let diamond_chestplate = ItemStack::new(ItemKind::DiamondChestplate, 1, None);
     let diamond_helmet = ItemStack::new(ItemKind::DiamondHelmet, 1, None);
-    let diamond_sword = ItemStack::new(ItemKind::DiamondSword, 1, None);
+    let _diamond_sword = ItemStack::new(ItemKind::DiamondSword, 1, None);
     let diamond_axe = ItemStack::new(ItemKind::DiamondAxe, 1, None);
     let diamond_pickaxe = ItemStack::new(ItemKind::DiamondPickaxe, 1, None);
     let coal = ItemStack::new(ItemKind::Coal, 15, None);
@@ -668,8 +668,8 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
         vec![
             TradeOffer::new(wheat.clone(), emerald.clone()).with_max_uses(16),
             TradeOffer::new(emerald.clone(), bread.clone()).with_max_uses(12),
-            TradeOffer::new(carrot, emerald.clone()).with_max_uses(16),
-            TradeOffer::new(emerald.clone(), carrot.clone()).with_max_uses(12),
+            TradeOffer::new(carrot.clone(), emerald.clone()).with_max_uses(16),
+            TradeOffer::new(emerald.clone(), carrot).with_max_uses(12),
         ],
     );
     trade_table.register_trades(
@@ -700,11 +700,11 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
     trade_table.register_trades(
         VillagerProfession::Farmer,
         5,
-        vec![TradeOffer::new(emerald.clone(), experience_bottle).with_max_uses(1)],
+        vec![TradeOffer::new(emerald.clone(), experience_bottle.clone()).with_max_uses(1)],
     );
 
     trade_table.register_trades(
-        VillagerProfession::Armorer,
+        VillagerProfession::Cleric,
         1,
         vec![
             TradeOffer::new(coal.clone(), emerald.clone()).with_max_uses(16),
@@ -764,11 +764,11 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
     trade_table.register_trades(
         VillagerProfession::Weaponsmith,
         3,
-        vec![TradeOffer::new(emerald.clone(), bell).with_max_uses(1)],
+        vec![TradeOffer::new(emerald.clone(), bell.clone()).with_max_uses(1)],
     );
     trade_table.register_trades(
         VillagerProfession::Weaponsmith,
-        4,
+        5,
         vec![
             TradeOffer::new(diamond.clone(), emerald.clone()).with_max_uses(1),
             TradeOffer::new(emerald.clone(), diamond_axe).with_max_uses(1),
@@ -777,7 +777,7 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
     trade_table.register_trades(
         VillagerProfession::Weaponsmith,
         5,
-        vec![TradeOffer::new(emerald.clone(), diamond_sword).with_max_uses(1)],
+        vec![TradeOffer::new(emerald.clone(), bell.clone()).with_max_uses(1)],
     );
 
     trade_table.register_trades(
@@ -883,7 +883,7 @@ fn register_default_trades(mut trade_table: ResMut<TradeTable>) {
         4,
         vec![
             TradeOffer::new(emerald.clone(), clock).with_max_uses(4),
-            TradeOffer::new(emerald.clone(), experience_bottle).with_max_uses(1),
+            TradeOffer::new(emerald.clone(), experience_bottle.clone()).with_max_uses(1),
         ],
     );
     trade_table.register_trades(

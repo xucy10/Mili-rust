@@ -61,6 +61,7 @@ pub struct LevelData {
     pub player_nether_scale: f32,
     pub raining: bool,
     pub rain_time: i32,
+    pub random_seed: i64,
     pub spawn_angle: f32,
     pub spawn_x: i32,
     pub spawn_y: i32,
@@ -102,6 +103,7 @@ impl Default for LevelData {
             player_nether_scale: 8.0,
             raining: false,
             rain_time: 0,
+            random_seed: 0,
             spawn_angle: 0.0,
             spawn_x: 0,
             spawn_y: 64,
@@ -138,6 +140,56 @@ impl LevelDat {
             data_version: 3715,
             level_data,
         }
+    }
+
+    /// Sets the world seed and configures noise parameters in generator_options.
+    pub fn set_seed(&mut self, seed: i64) {
+        self.level_data.random_seed = seed;
+
+        let mut noise_config = Compound::new();
+        noise_config.insert("seed".to_owned(), Value::Long(seed));
+
+        let mut noise_params = Compound::new();
+        noise_params.insert("octaves".to_owned(), Value::Int(6));
+        noise_params.insert("frequency".to_owned(), Value::Double(0.005));
+        noise_params.insert("lacunarity".to_owned(), Value::Double(2.0));
+        noise_params.insert("persistence".to_owned(), Value::Double(0.5));
+        noise_config.insert("height_noise".to_owned(), Value::Compound(noise_params));
+
+        let mut detail_params = Compound::new();
+        detail_params.insert("octaves".to_owned(), Value::Int(4));
+        detail_params.insert("frequency".to_owned(), Value::Double(0.02));
+        detail_params.insert("lacunarity".to_owned(), Value::Double(2.0));
+        detail_params.insert("persistence".to_owned(), Value::Double(0.5));
+        noise_config.insert("detail_noise".to_owned(), Value::Compound(detail_params));
+
+        let mut cave_params = Compound::new();
+        cave_params.insert("octaves".to_owned(), Value::Int(3));
+        cave_params.insert("frequency".to_owned(), Value::Double(0.03));
+        cave_params.insert("lacunarity".to_owned(), Value::Double(2.0));
+        cave_params.insert("persistence".to_owned(), Value::Double(0.5));
+        noise_config.insert("cave_noise".to_owned(), Value::Compound(cave_params));
+
+        let mut ore_params = Compound::new();
+        ore_params.insert("octaves".to_owned(), Value::Int(2));
+        ore_params.insert("frequency".to_owned(), Value::Double(0.1));
+        ore_params.insert("lacunarity".to_owned(), Value::Double(2.0));
+        ore_params.insert("persistence".to_owned(), Value::Double(0.5));
+        noise_config.insert("ore_noise".to_owned(), Value::Compound(ore_params));
+
+        let mut biome_params = Compound::new();
+        biome_params.insert("seed".to_owned(), Value::Long(seed.wrapping_add(3)));
+        noise_config.insert("biome_noise".to_owned(), Value::Compound(biome_params));
+
+        self.level_data.generator_options = noise_config;
+        self.level_data.generator_name = "mili-rust".to_owned();
+    }
+
+    /// Creates a new LevelDat with the given seed.
+    pub fn with_seed(seed: i64) -> Self {
+        let mut level = Self::new();
+        level.set_seed(seed);
+        level
     }
 
     /// Reads a LevelDat from a file.
@@ -269,6 +321,7 @@ impl LevelDat {
             player_nether_scale: get_float(&mut compound, "NetherScale", 8.0),
             raining: get_bool(&mut compound, "raining", false),
             rain_time: get_int(&mut compound, "rainTime", 0),
+            random_seed: get_long(&mut compound, "RandomSeed", 0),
             spawn_angle: get_float(&mut compound, "SpawnAngle", 0.0),
             spawn_x: get_int(&mut compound, "SpawnX", 0),
             spawn_y: get_int(&mut compound, "SpawnY", 64),
@@ -404,6 +457,7 @@ impl LevelData {
         );
         c.insert("raining".to_owned(), Value::Byte(self.raining as i8));
         c.insert("rainTime".to_owned(), Value::Int(self.rain_time));
+        c.insert("RandomSeed".to_owned(), Value::Long(self.random_seed));
         c.insert("SpawnAngle".to_owned(), Value::Float(self.spawn_angle));
         c.insert("SpawnX".to_owned(), Value::Int(self.spawn_x));
         c.insert("SpawnY".to_owned(), Value::Int(self.spawn_y));

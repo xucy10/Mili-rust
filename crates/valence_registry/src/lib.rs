@@ -3,6 +3,7 @@
 pub mod biome;
 pub mod codec;
 pub mod dimension_type;
+pub mod enchantment;
 pub mod tags;
 
 use std::fmt::Debug;

@@ -22,3 +22,4 @@ valence_server.workspace = true
 valence_protocol.workspace = true
 valence_anvil.workspace = true
 valence_nbt.workspace = true
+valence_registry.workspace = true

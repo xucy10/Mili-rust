@@ -17,4 +17,9 @@ perf.data
 perf.data.old
 /graph.svg
 
-ferrumc-master/
+/ferrumc-master/
+/Leaf-ver-26.2/
+/minecraft-data-pc_26_2/
+/MC-generated-data-snapshots-26.2/
+minecraft-assets-26.2/
+node-minecraft-protocol-pc26_2/

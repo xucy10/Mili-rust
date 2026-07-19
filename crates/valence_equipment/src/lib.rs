@@ -18,25 +18,28 @@ pub struct EquipmentPlugin;
 
 impl Plugin for EquipmentPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            PreUpdate,
-            (
-                on_entity_init,
-                interaction_broadcast::start_interaction,
-                interaction_broadcast::stop_interaction,
-                inventory_sync::on_attach_inventory_sync,
-                inventory_sync::equipment_inventory_sync,
-                inventory_sync::equipment_held_item_sync_from_client,
-            ),
-        )
-        .add_systems(
-            PostUpdate,
-            (
-                update_equipment.before(FlushPacketsSet),
-                on_entity_load.before(FlushPacketsSet),
-            ),
-        )
-        .add_event::<EquipmentChangeEvent>();
+        // 🔬 TEMPORARY: Completely disable all equipment/inventory systems to debug 26.2 protocol issues
+        // TODO: Re-enable once all play packets are verified for 26.2 compliance
+        app.add_event::<EquipmentChangeEvent>();
+        
+        // .add_systems(
+        //     PreUpdate,
+        //     (
+        //         on_entity_init,
+        //         interaction_broadcast::start_interaction,
+        //         interaction_broadcast::stop_interaction,
+        //         inventory_sync::on_attach_inventory_sync,
+        //         inventory_sync::equipment_inventory_sync,
+        //         inventory_sync::equipment_held_item_sync_from_client,
+        //     ),
+        // )
+        // .add_systems(
+        //     PostUpdate,
+        //     (
+        //         update_equipment.before(FlushPacketsSet),
+        //         on_entity_load.before(FlushPacketsSet),
+        //     ),
+        // )
     }
 }
 

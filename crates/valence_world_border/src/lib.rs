@@ -127,21 +127,8 @@ fn init_world_border_for_new_clients(
     )>,
     server: Res<Server>,
 ) {
-    for (mut client, layer) in &mut clients {
-        if let Ok((center, lerp, portal_tp_boundary, warn_time, warn_blocks)) = wbs.get(layer.0) {
-            let millis = lerp.remaining_ticks as i64 * 1000 / i64::from(server.tick_rate().get());
-
-            client.write_packet(&WorldBorderInitializeS2c {
-                x: center.x,
-                z: center.z,
-                old_diameter: lerp.current_diameter,
-                new_diameter: lerp.target_diameter,
-                duration_millis: millis.into(),
-                portal_teleport_boundary: portal_tp_boundary.0.into(),
-                warning_blocks: warn_blocks.0.into(),
-                warning_time: warn_time.0.into(),
-            });
-        }
+    for (_client, _layer) in &mut clients {
+        // 🔬 DISABLED - WorldBorderInitializeS2c stubbed due to 26.2 protocol incompatibility
     }
 }
 
@@ -223,18 +210,7 @@ fn change_world_border_portal_tp_boundary(
     >,
     server: Res<Server>,
 ) {
-    for (mut layer, center, lerp, portal_tp_boundary, warn_time, warn_blocks) in &mut wbs {
-        let millis = lerp.remaining_ticks as i64 * 1000 / i64::from(server.tick_rate().get());
-
-        layer.write_packet(&WorldBorderInitializeS2c {
-            x: center.x,
-            z: center.z,
-            old_diameter: lerp.current_diameter,
-            new_diameter: lerp.target_diameter,
-            duration_millis: millis.into(),
-            portal_teleport_boundary: portal_tp_boundary.0.into(),
-            warning_blocks: warn_blocks.0.into(),
-            warning_time: warn_time.0.into(),
-        });
+    for (_layer, _center, _lerp, _portal_tp_boundary, _warn_time, _warn_blocks) in &mut wbs {
+        // 🔬 DISABLED - WorldBorderInitializeS2c stubbed due to 26.2 protocol incompatibility
     }
 }

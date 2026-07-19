@@ -5,14 +5,15 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use parking_lot::Mutex; // Using nonstandard mutex to avoid poisoning API.
 use valence_generated::block::{PropName, PropValue};
-use valence_nbt::{compound, Compound, Value};
+use valence_nbt::{to_binary_network, Compound};
 use valence_protocol::encode::{PacketWriter, WritePacket};
 use valence_protocol::packets::play::chunk_data_s2c::ChunkDataBlockEntity;
 use valence_protocol::packets::play::chunk_delta_update_s2c::ChunkDeltaUpdateEntry;
 use valence_protocol::packets::play::{
     BlockEntityUpdateS2c, BlockUpdateS2c, ChunkDataS2c, ChunkDeltaUpdateS2c,
 };
-use valence_protocol::{BlockPos, BlockState, ChunkPos, ChunkSectionPos, Encode};
+use valence_protocol::packets::play::chunk_data_s2c::ChunkDataWrapper;
+use valence_protocol::{BlockPos, BlockState, ChunkPos, ChunkSectionPos, Encode, VarInt};
 use valence_registry::biome::BiomeId;
 use valence_registry::RegistryIdx;
 
@@ -348,12 +349,10 @@ impl LoadedChunk {
     /// and the last long will be
     ///
     /// 0 000000000 000000000 000000000 000000100 000000100 000000100 000000100.
-    fn encode_heightmap(heightmap: Vec<Vec<u32>>) -> Value {
+    fn encode_heightmap(heightmap: Vec<Vec<u32>>) -> Vec<i64> {
         const BITS_PER_ENTRY: u32 = 9;
         const ENTRIES_PER_LONG: u32 = i64::BITS / BITS_PER_ENTRY;
 
-        // Unless `ENTRIES_PER_LONG` is a power of 2 and therefore evenly divides 16*16,
-        // we need to add one extra long to fit all values in the packet.
         const LONGS_PER_PACKET: u32 =
             16 * 16 / ENTRIES_PER_LONG + (16 * 16 % ENTRIES_PER_LONG != 0) as u32;
 
@@ -369,7 +368,7 @@ impl LoadedChunk {
             }
         }
 
-        Value::LongArray(encoded)
+        encoded
     }
 
     /// Writes the packet data needed to initialize this chunk.
@@ -382,22 +381,21 @@ impl LoadedChunk {
         let mut init_packets = self.cached_init_packets.lock();
 
         if init_packets.is_empty() {
-            let heightmaps = compound! {
-                "MOTION_BLOCKING" => LoadedChunk::encode_heightmap(self.motion_blocking()),
-                // TODO Implement `WORLD_SURFACE` (or explain why we don't need it)
-                // "WORLD_SURFACE" => self.encode_heightmap(self.world_surface()),
-            };
+            let motion_blocking = LoadedChunk::encode_heightmap(self.motion_blocking());
 
-            let mut blocks_and_biomes: Vec<u8> = vec![];
+            let mut section_data_buf: Vec<u8> = vec![];
 
             for sect in &self.sections {
                 sect.count_non_air_blocks()
-                    .encode(&mut blocks_and_biomes)
+                    .encode(&mut section_data_buf)
                     .unwrap();
+
+                // Fluid count (new in 26.2) - always 0 for now
+                0u16.encode(&mut section_data_buf).unwrap();
 
                 sect.block_states
                     .encode_mc_format(
-                        &mut blocks_and_biomes,
+                        &mut section_data_buf,
                         |b| b.to_raw().into(),
                         4,
                         8,
@@ -407,7 +405,7 @@ impl LoadedChunk {
 
                 sect.biomes
                     .encode_mc_format(
-                        &mut blocks_and_biomes,
+                        &mut section_data_buf,
                         |b| b.to_index() as u64,
                         0,
                         3,
@@ -438,21 +436,108 @@ impl LoadedChunk {
                 })
                 .collect();
 
+            // Build chunk_data_buf: heightmaps + section data + block entities
+            // MC 26.2 wiki: Heightmaps, Data, Block Entities are all inside chunk_data
+            let mut chunk_data_buf = Vec::new();
+
+            // 1. Heightmaps: Prefixed Array of Heightmap
+            //    VarInt(count=1), VarInt(type=4 MOTION_BLOCKING), VarInt(array_len), i64[array_len]
+            VarInt(1).encode(&mut chunk_data_buf).unwrap();
+            VarInt(4).encode(&mut chunk_data_buf).unwrap(); // MOTION_BLOCKING = 4
+            VarInt(motion_blocking.len() as i32).encode(&mut chunk_data_buf).unwrap();
+            for long in &motion_blocking {
+                long.encode(&mut chunk_data_buf).unwrap();
+            }
+
+            // 2. Section data: VarInt(len) + bytes
+            VarInt(section_data_buf.len() as i32)
+                .encode(&mut chunk_data_buf).unwrap();
+            chunk_data_buf.extend_from_slice(&section_data_buf);
+
+            // 3. Block entities: VarInt(count) + [i8(packedXZ) + i16(y) + VarInt(type) + NBT]*
+            VarInt(block_entities.len() as i32).encode(&mut chunk_data_buf).unwrap();
+            for be in &block_entities {
+                // MC 26.2 format: packed_xz (i8), y (i16), block_entity_type (VarInt), tag (NBT)
+                be.packed_xz.encode(&mut chunk_data_buf).unwrap();
+                be.y.encode(&mut chunk_data_buf).unwrap();
+                be.kind.encode(&mut chunk_data_buf).unwrap();
+                to_binary_network(be.data.as_ref(), &mut chunk_data_buf)
+                    .expect("should serialize block entity NBT");
+            }
+
+            // DEBUG: Print chunk data info
+            if pos == ChunkPos::new(0, 0) {
+                eprintln!("[DEBUG] === CHUNK DATA INFO ===");
+                eprintln!("[DEBUG] chunk_data_buf size: {} bytes", chunk_data_buf.len());
+                eprintln!("[DEBUG] section_data_buf size: {} bytes", section_data_buf.len());
+                eprintln!("[DEBUG] block_entities count: {}", block_entities.len());
+                eprintln!("[DEBUG] First 32 bytes of chunk_data_buf (hex): {:02x?}", &chunk_data_buf[..32.min(chunk_data_buf.len())]);
+                eprintln!("[DEBUG] ==================================");
+            }
+
+            // 4. Light data (included in ChunkDataS2c packet for MC 1.21.5+)
+            // Wiki: BitSet = VarInt(length_in_longs) + Long[length]
+            // Wiki: Light arrays = Prefixed Array of Prefixed Array (2048) of Byte
+            //   = VarInt(count) + [VarInt(2048) + Byte[2048]]*count
+            let section_count = info.height as usize / 16;
+            let empty_mask_len = (section_count + 2 + 63) / 64;
+            let total_sections = section_count + 2;
+
+            let mut sky_light_mask = vec![0u64; empty_mask_len];
+            for i in 0..total_sections {
+                sky_light_mask[i / 64] |= 1u64 << (i % 64);
+            }
+            let mut block_light_mask = vec![0u64; empty_mask_len];
+            for i in 0..total_sections {
+                block_light_mask[i / 64] |= 1u64 << (i % 64);
+            }
+            let empty_sky_light_mask = vec![0u64; empty_mask_len];
+            let empty_block_light_mask = vec![0u64; empty_mask_len];
+
+            // Sky light arrays: VarInt(count) + [VarInt(2048) + [0xff; 2048]]*count
+            let mut sky_light_arrays_buf = Vec::new();
+            VarInt(total_sections as i32).encode(&mut sky_light_arrays_buf).unwrap();
+            for _ in 0..total_sections {
+                VarInt(2048).encode(&mut sky_light_arrays_buf).unwrap();
+                sky_light_arrays_buf.extend_from_slice(&[0xffu8; 2048]);
+            }
+
+            // Block light arrays: VarInt(count) + [VarInt(2048) + [0x00; 2048]]*count
+            let mut block_light_arrays_buf = Vec::new();
+            VarInt(total_sections as i32).encode(&mut block_light_arrays_buf).unwrap();
+            for _ in 0..total_sections {
+                VarInt(2048).encode(&mut block_light_arrays_buf).unwrap();
+                block_light_arrays_buf.extend_from_slice(&[0u8; 2048]);
+            }
+
             PacketWriter::new(&mut init_packets, info.threshold).write_packet(&ChunkDataS2c {
-                pos,
-                heightmaps: Cow::Owned(heightmaps),
-                blocks_and_biomes: &blocks_and_biomes,
-                block_entities: Cow::Owned(block_entities),
-                sky_light_mask: Cow::Borrowed(&[]),
-                block_light_mask: Cow::Borrowed(&[]),
-                empty_sky_light_mask: Cow::Borrowed(&[]),
-                empty_block_light_mask: Cow::Borrowed(&[]),
-                sky_light_arrays: Cow::Borrowed(&[]),
-                block_light_arrays: Cow::Borrowed(&[]),
-            })
+                x: pos.x,
+                z: pos.z,
+                chunk_data: ChunkDataWrapper(&chunk_data_buf),
+                sky_light_mask: Cow::Owned(sky_light_mask),
+                block_light_mask: Cow::Owned(block_light_mask),
+                empty_sky_light_mask: Cow::Owned(empty_sky_light_mask),
+                empty_block_light_mask: Cow::Owned(empty_block_light_mask),
+                sky_light_arrays: valence_protocol::RawBytes(&sky_light_arrays_buf),      // ← 使用完整路径！
+                block_light_arrays: valence_protocol::RawBytes(&block_light_arrays_buf),     // ← 使用完整路径！
+            });
+        }
+
+        // DEBUG: Print init_packets summary for first chunk
+        if pos == ChunkPos::new(0, 0) {
+            eprintln!("[DEBUG] === INIT_PACKETS SUMMARY ===");
+            eprintln!("[DEBUG] Total init_packets size: {} bytes", init_packets.len());
+            if !init_packets.is_empty() {
+                eprintln!("[DEBUG] First 64 bytes hex: {:02x?}", &init_packets[..init_packets.len().min(64)]);
+            }
+            eprintln!("[DEBUG] ================================================");
         }
 
         writer.write_packet_bytes(&init_packets);
+        
+        if pos == ChunkPos::new(0, 0) {
+            eprintln!("[DEBUG] ✅ write_init_packets COMPLETED for chunk (0, 0)");
+        }
     }
 
     /// Asserts that no changes to this chunk are currently recorded.

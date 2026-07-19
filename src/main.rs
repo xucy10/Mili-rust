@@ -10,6 +10,7 @@ use valence_vanilla::mob_spawning::{spawn_mob, MobType};
 use valence_vanilla::terrain::TerrainSeed;
 use valence_vanilla::VanillaPlugin;
 use valence_world::save_system::{WorldSaveManager, WorldSavePlugin};
+use valence_world::LevelDat;
 
 use crate::callbacks::MiliCallbacks;
 use crate::config::ServerConfig;
@@ -189,7 +190,16 @@ fn setup(
     println!("世界生成完成!");
     println!();
 
-    commands.insert_resource(WorldSaveManager::new("./world"));
+    let mut save_manager = WorldSaveManager::new("./world");
+    let mut level_dat = LevelDat::with_name("Mili-rust World");
+    level_dat.set_seed(seed as i64);
+    level_dat.level_data.spawn_x = config.spawn.x;
+    level_dat.level_data.spawn_y = config.spawn.y;
+    level_dat.level_data.spawn_z = config.spawn.z;
+    let _ = save_manager.load_level_dat();
+    save_manager.level_dat = Some(level_dat);
+    let _ = save_manager.save_level_dat();
+    commands.insert_resource(save_manager);
 }
 
 fn create_spawn_area(layer: &mut LayerBundle, spawn_y: i32) {
@@ -337,11 +347,11 @@ fn init_clients(
         inventory.set_slot(42, ItemStack::new(ItemKind::Repeater, 4, None));
         inventory.set_slot(43, ItemStack::new(ItemKind::Comparator, 4, None));
         inventory.set_slot(44, ItemStack::new(ItemKind::RedstoneLamp, 4, None));
-        inventory.set_slot(45, ItemStack::new(ItemKind::OakPlanks, 64, None));
-        inventory.set_slot(46, ItemStack::new(ItemKind::IronIngot, 32, None));
-        inventory.set_slot(47, ItemStack::new(ItemKind::Coal, 32, None));
-        inventory.set_slot(48, ItemStack::new(ItemKind::CraftingTable, 4, None));
-        inventory.set_slot(49, ItemStack::new(ItemKind::Furnace, 2, None));
+        inventory.set_slot(9, ItemStack::new(ItemKind::OakPlanks, 64, None));
+        inventory.set_slot(10, ItemStack::new(ItemKind::IronIngot, 32, None));
+        inventory.set_slot(11, ItemStack::new(ItemKind::Coal, 32, None));
+        inventory.set_slot(12, ItemStack::new(ItemKind::CraftingTable, 4, None));
+        inventory.set_slot(13, ItemStack::new(ItemKind::Furnace, 2, None));
 
         println!("新玩家加入游戏!");
     }
